@@ -1,0 +1,20 @@
+{
+    "disaster_type": "Earthquake",
+    "temperature_range": [
+        35.0,
+        45.0
+    ],
+    "power_range": [
+        80.0,
+        150.0
+    ],
+    "drop_percentage": 80,
+    "delay_profiles": [
+        {
+            "probability": 100,
+            "min": 5.0,
+            "max": 12.0
+        }
+    ],
+    "transition_duration_s": 120
+}

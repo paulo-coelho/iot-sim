@@ -1,0 +1,33 @@
+{
+  "server_host": "127.0.0.1",
+  "server_port": 5683,
+  "resource_path": [
+    "device",
+    "data"
+  ],
+  "coordinate": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "temperature_range": [
+    20.0,
+    30.0
+  ],
+  "power_range": [
+    5.0,
+    15.0
+  ],
+  "drop_percentage": 5,
+  "delay_profiles": [
+    {
+      "probability": 70,
+      "min": 2.5,
+      "max": 5.5
+    },
+    {
+      "probability": 30,
+      "min": 4.5,
+      "max": 6.0
+    }
+  ]
+}

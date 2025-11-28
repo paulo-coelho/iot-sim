@@ -1,0 +1,36 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "aiocoap"
+version = "0.4.17"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/7c/10483df04d7910e21d55d47ab7c014fb02644b5b58ba741161360f8e9e8d/aiocoap-0.4.17.tar.gz", hash = "sha256:464c8d2b85ec1ef435dabeaa3fb6c8256b40fadfe6ce4ca83b93acb8d555f436", size = 313536, upload-time = "2025-11-05T01:25:36.641Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6c/43/aa24717e6a12dd00e0a9bee405ef8d3b9643edac23876e949f23f46b55ff/aiocoap-0.4.17-py3-none-any.whl", hash = "sha256:9f8f5f09e8f2666b635d7f9c45db5d1d0e38d41479b2d83878678a9cdb5a8f3c", size = 247391, upload-time = "2025-11-05T01:25:34.704Z" },
+]
+
+[[package]]
+name = "iot-sim"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "aiocoap" },
+    { name = "scapy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiocoap", specifier = ">=0.4.17" },
+    { name = "scapy", specifier = ">=2.6.1" },
+]
+
+[[package]]
+name = "scapy"
+version = "2.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/df/2f/035d3888f26d999e9680af8c7ddb7ce4ea0fd8d0e01c000de634c22dcf13/scapy-2.6.1.tar.gz", hash = "sha256:7600d7e2383c853e5c3a6e05d37e17643beebf2b3e10d7914dffcc3bc3c6e6c5", size = 2247754, upload-time = "2024-11-05T08:43:23.488Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/34/8695b43af99d0c796e4b7933a0d7df8925f43a8abdd0ff0f6297beb4de3a/scapy-2.6.1-py3-none-any.whl", hash = "sha256:88a998572049b511a1f3e44f4aa7c62dd39c6ea2aa1bb58434f503956641789d", size = 2420670, upload-time = "2024-11-05T08:43:21.285Z" },
+]

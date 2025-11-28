@@ -1,0 +1,13 @@
+{
+  "name": "Phase-1 Cascade Disruption",
+  "steps": [
+    {
+      "target_id": 1,
+      "delay_s": 0
+    },
+    {
+      "target_id": 2,
+      "delay_s": 120
+    }
+  ]
+}
