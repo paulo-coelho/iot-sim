@@ -4,6 +4,8 @@ import os
 import random
 import sys
 import time
+import logging
+import logging.config
 from typing import Any
 
 from aiocoap import Code, ContentFormat, Context, Message, resource
@@ -82,9 +84,9 @@ class AsyncIoTResource(resource.Resource):
             if self.current_battery_charge <= 0:
                 self.current_battery_charge = 0
                 self.discharged = True
-                print("🔋 Battery fully discharged by idle drain.")
+                logger.info("🔋 Battery fully discharged by idle drain.")
             else:
-                print(
+                logger.info(
                     f"🔋 Battery idle drain: charge now is {self.current_battery_charge:.2f}"
                 )
 
@@ -119,7 +121,7 @@ class AsyncIoTResource(resource.Resource):
         if not self.target_config:
             return
 
-        print(
+        logger.info(
             f"\n🌪️ Starting gradual transition to {self.disaster_type} mode over {self.transition_duration}s..."
         )
 
@@ -180,15 +182,15 @@ class AsyncIoTResource(resource.Resource):
 
             # Print status update every 10 seconds (or adjust frequency as needed)
             if int(elapsed) % 10 == 0:
-                print(f"  [Transition Progress: {progress * 100:.0f}%]")
-                print(
-                    f"    Temp Range: {self.current_temp_min:.1f}-{self.current_temp_max:.1f}"
+                logger.debug(f"  [Transition Progress: {progress * 100:.0f}%]")
+                logger.debug(
+                    f" debugemp Range: {self.current_temp_min:.1f}-{self.current_temp_max:.1f}"
                 )
-                print(f"    Drop Rate: {self.current_drop_percentage:.1f}%")
-                print(
-                    f"    Battery Transmit Discharge: {self.current_battery_transmit_discharge:.2f}"
+                logger.debug(f"    Drop Rate: {self.current_drop_percentage:.1f}%")
+                logger.debug(
+                    f" debugattery Transmit Discharge: {self.current_battery_transmit_discharge:.2f}"
                 )
-                print(
+                logger.debug(
                     f"    Battery Idle Discharge: {self.current_battery_idle_discharge:.2f}"
                 )
 
@@ -203,7 +205,7 @@ class AsyncIoTResource(resource.Resource):
         self.current_drop_percentage = target_drop_percentage
         self._set_delay_profiles(target_delay_profiles)
 
-        print(
+        logger.info(
             f"🌪️ Transition complete. Simulator is now in **{self.disaster_type}** mode."
         )
         self.disaster_mode = True
@@ -228,7 +230,7 @@ class AsyncIoTResource(resource.Resource):
         ## Validate Disaster Config
         try:
             self.target_config: DisasterConfig = DisasterConfig.from_dict(payload)
-            print(f"\n🚨 Received Disaster Mode Trigger: {self.target_config}")
+            logger.info(f"\n🚨 Received Disaster Mode Trigger: {self.target_config}")
         except Exception as e:
             return Message(
                 code=Code.BAD_REQUEST,
@@ -241,7 +243,7 @@ class AsyncIoTResource(resource.Resource):
         # Stop any existing transition task
         if self.transition_task:
             self.transition_task.cancel()
-            print("🛑 Canceled previous transition task.")
+            logger.warning("🛑 Canceled previous transition task.")
 
         # Start the asynchronous transition task
         loop = asyncio.get_event_loop()
@@ -270,7 +272,7 @@ class AsyncIoTResource(resource.Resource):
 
         # Drop Simulation
         if random.random() * 100 < self.current_drop_percentage:
-            print(
+            logger.debug(
                 f"🚨 Dropping packet (Current Rate: {self.current_drop_percentage:.1f}%)"
             )
             await asyncio.sleep(20)
@@ -284,7 +286,7 @@ class AsyncIoTResource(resource.Resource):
         delay = random.uniform(min_delay, max_delay)
 
         if delay > 0:
-            print(
+            logger.debug(
                 f"⏳ Non-blocking delay: {delay:.2f}s (Profile: {min_delay:.2f}s - {max_delay:.2f}s)"
             )
             await asyncio.sleep(delay)
@@ -303,7 +305,7 @@ class AsyncIoTResource(resource.Resource):
 
         payload_bytes: bytes = json.dumps(response_data).encode("utf-8")
 
-        print(f"✅ Responding with: {payload_bytes.decode('utf-8')}")
+        logger.debug(f"✅ Responding with: {payload_bytes.decode('utf-8')}")
 
         return Message(
             code=Code.CONTENT,
@@ -314,30 +316,41 @@ class AsyncIoTResource(resource.Resource):
 
 ## Main Server Function (unchanged)
 async def main() -> None:
+    # Load logging configuration
+    with open("log-config.json", "r") as f:
+        log_config = json.load(f)
+    # Generate timestamped log filename
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    log_filename = f"log-iot-sim-{timestamp}.log"
+    log_config["handlers"]["file"]["filename"] = log_filename
+    logging.config.dictConfig(log_config)
+    global logger
+    logger = logging.getLogger("iot-sim")
+
     if len(sys.argv) < 2:
-        print(
-            "🛑 ERROR: Please provide the path to the configuration JSON file as a command line argument."
+        logger.error(
+            "🛑 Please provide the path to the configuration JSON file as a command line argument."
         )
-        print("Usage: python simulator.py /path/to/simulator_config.json")
+        logger.info("Usage: python iot-sim.py /path/to/simulator_config.json")
         return
 
     CONFIG_FILE: str = sys.argv[1]
 
     if not os.path.exists(CONFIG_FILE):
-        print(f"🛑 ERROR: Configuration file not found at '{CONFIG_FILE}'.")
+        logger.error(f"🛑 Configuration file not found at '{CONFIG_FILE}'.")
         return
 
     try:
         config = DeviceConfig.from_file(CONFIG_FILE)
     except Exception as e:
-        print(f"🛑 ERROR: An unexpected error occurred while reading the file: {e}")
+        logger.error(f"🛑 An unexpected error occurred while reading the file: {e}")
         return
 
     DELAY_PROFILES = config.delay_profiles
     total_probability: float = sum(p.get("probability", 0) for p in DELAY_PROFILES)
     if total_probability != 100:
-        print(
-            f"🛑 ERROR: Total probability of delay profiles must equal 100. Found: {total_probability}"
+        logger.error(
+            f"🛑 Total probability of delay profiles must equal 100. Found: {total_probability}"
         )
         return
 
@@ -354,26 +367,25 @@ async def main() -> None:
     _ = await Context.create_server_context(root, bind=(SERVER_HOST, SERVER_PORT))
 
     # --- Print Confirmation ---
-    print("--- Async CoAP Simulator (aiocoap) Running ---")
-    print(f"Loaded config from: {CONFIG_FILE}")
-    print(f"UUID: {config.uuid}")
-    print(f"Binding: coap://{SERVER_HOST}:{SERVER_PORT}")
-    print(f"Resource Path: /{'/'.join(RESOURCE_PATH)}")
-    print(
+    logger.info("--- Async CoAP Simulator (aiocoap) Running ---")
+    logger.info(f"Loaded config from: {CONFIG_FILE}")
+    logger.info(f"UUID: {config.uuid}")
+    logger.info(f"Binding: coap://{SERVER_HOST}:{SERVER_PORT}")
+    logger.info(f"Resource Path: /{'/'.join(RESOURCE_PATH)}")
+    logger.info(
         f"Geo Coordinates: Lat {config.coordinate['latitude']:.4f}, Lon {config.coordinate['longitude']:.4f}"
     )
-    print("Battery information:")
-    print(f"  Initial charge: {config.battery_charge:.2f}")
-    print(f"  Request discharge: {config.battery_transmit_discharge:.2f}")
-    print(f"  Idle discharge: {config.battery_idle_discharge:.2f}")
-    print(f"Total Drop Percentage: {config.drop_percentage:.2f}%")
-    print("Delay Profiles:")
+    logger.info("Battery information:")
+    logger.info(f"  Initial charge: {config.battery_charge:.2f}")
+    logger.info(f"  Request discharge: {config.battery_transmit_discharge:.2f}")
+    logger.info(f"  Idle discharge: {config.battery_idle_discharge:.2f}")
+    logger.info(f"Total Drop Percentage: {config.drop_percentage:.2f}%")
+    logger.info("Delay Profiles:")
     for profile in DELAY_PROFILES:
-        print(
+        logger.info(
             f"  - {profile['probability']}% chance for {profile['min']:.2f}s - {profile['max']:.2f}s delay"
         )
-    print("-------------------------------------------\n")
-
+    logger.info("-------------------------------------------\n")
     await asyncio.get_event_loop().create_future()
 
 
@@ -381,4 +393,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 Async CoAP Server Shutting Down...")
+        logger.info("\n👋 Async CoAP Server Shutting Down...")

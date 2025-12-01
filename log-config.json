@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "standard": {
+      "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    }
+  },
+  "handlers": {
+    "file": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "filename": "log-iot-sim.log",
+      "maxBytes": 1048576,
+      "backupCount": 3,
+      "formatter": "standard",
+      "level": "DEBUG"
+    },
+    "console": {
+      "class": "logging.StreamHandler",
+      "formatter": "standard",
+      "level": "INFO"
+    }
+  },
+  "loggers": {
+    "iot-sim": {
+      "handlers": [
+        "file",
+        "console"
+      ],
+      "level": "DEBUG",
+      "propagate": false
+    }
+  },
+  "root": {
+    "handlers": [
+      "file",
+      "console"
+    ],
+    "level": "INFO"
+  }
+}
