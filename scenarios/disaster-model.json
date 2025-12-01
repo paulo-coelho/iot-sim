@@ -1,0 +1,18 @@
+{
+  "disaster_type": "Earthquake",
+  "temperature_range": [
+    35.0,
+    45.0
+  ],
+  "battery_transmit_discharge": 20,
+  "battery_idle_discharge": 4,
+  "drop_percentage": 80,
+  "delay_profiles": [
+    {
+      "probability": 100,
+      "min": 5.0,
+      "max": 12.0
+    }
+  ],
+  "transition_duration_s": 120
+}

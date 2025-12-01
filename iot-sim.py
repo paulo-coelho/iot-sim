@@ -4,11 +4,13 @@ import os
 import random
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from aiocoap import Code, ContentFormat, Context, Message, resource
 from aiocoap.error import NotFound
 from aiocoap.resource import Site
+
+from config_models import DeviceConfig, DisasterConfig
 
 
 class AsyncIoTResource(resource.Resource):
@@ -17,65 +19,100 @@ class AsyncIoTResource(resource.Resource):
     values, probabilistic delays, and packet drops, including a disaster mode.
     """
 
-    def __init__(
-        self,
-        temperature_range: Tuple[float, float],
-        power_range: Tuple[float, float],
-        drop_percentage: float,
-        delay_profiles: List[Dict[str, Any]],
-        coordinate: Dict[str, float],
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, device_config: DeviceConfig) -> None:
         super().__init__()
 
+        # Store the config object
+        self.device_config: DeviceConfig = device_config
+
         # Initial/Normal Configuration
-        self.initial_temp_min, self.initial_temp_max = temperature_range
-        self.initial_power_min, self.initial_power_max = power_range
-        self.initial_drop_percentage = drop_percentage
-        self.initial_delay_profiles = delay_profiles
+        self.initial_temp_min: float
+        self.initial_temp_max: float
+        self.initial_temp_min, self.initial_temp_max = device_config.temperature_range
+
+        self.initial_drop_percentage: float = device_config.drop_percentage
+        self.initial_battery_charge: float = device_config.battery_charge
+        self.initial_battery_transmit_discharge: float = (
+            device_config.battery_transmit_discharge
+        )
+        self.initial_battery_idle_discharge: float = (
+            device_config.battery_idle_discharge
+        )
+        self.initial_delay_profiles: list[dict[str, int | float]] = (
+            device_config.delay_profiles
+        )
 
         # Current Live Configuration (changes during transition)
-        self.current_temp_min, self.current_temp_max = temperature_range
-        self.current_power_min, self.current_power_max = power_range
-        self.current_drop_percentage = drop_percentage
+        self.current_temp_min: float
+        self.current_temp_max: float
+        self.current_temp_min, self.current_temp_max = device_config.temperature_range
 
-        # Pre-process initial delay profiles
-        self._set_delay_profiles(delay_profiles)
+        self.current_drop_percentage: float = device_config.drop_percentage
+        self.current_battery_charge: float = device_config.battery_charge
+        self.current_battery_transmit_discharge: float = (
+            device_config.battery_transmit_discharge
+        )
+        self.current_battery_idle_discharge: float = (
+            device_config.battery_idle_discharge
+        )
+
+        self._set_delay_profiles(device_config.delay_profiles)
 
         # Static Configuration
-        self.coordinate = coordinate
+        self.coordinate: dict[str, float] = device_config.coordinate
 
         # Disaster State Management
         self.disaster_mode: bool = False
         self.disaster_type: str = "Normal"
-        self.target_config: Optional[Dict[str, Any]] = None
         self.transition_start_time: float = 0.0
         self.transition_duration: float = 0.0
-        self.transition_task: Optional[asyncio.Task] = None
+        self.transition_task: asyncio.Task[None] | None = None
+        self.discharged: bool = True if self.current_battery_charge <= 0 else False
 
-    def _set_delay_profiles(self, profiles: List[Dict[str, Any]]) -> None:
+        # Start background battery idle drain task
+        self._battery_idle_drain_task_handle: asyncio.Task[None] = asyncio.create_task(
+            self._battery_idle_drain_task()
+        )
+
+    async def _battery_idle_drain_task(self) -> None:
+        """Background task to drain battery by idle discharge every minute."""
+        while self.current_battery_charge > 0:
+            await asyncio.sleep(60)
+            self.current_battery_charge -= self.current_battery_idle_discharge
+            if self.current_battery_charge <= 0:
+                self.current_battery_charge = 0
+                self.discharged = True
+                print("🔋 Battery fully discharged by idle drain.")
+            else:
+                print(
+                    f"🔋 Battery idle drain: charge now is {self.current_battery_charge:.2f}"
+                )
+
+    def _set_delay_profiles(self, profiles: list[dict[str, int | float]]) -> None:
         """Sets up the weighted random choice for delay profiles."""
-        self.delay_weights: List[int] = [p["probability"] for p in profiles]
-        self.delay_ranges: List[Tuple[float, float]] = [
+        self.delay_weights: list[int | float] = [p["probability"] for p in profiles]
+        self.delay_ranges: list[tuple[float, float]] = [
             (p["min"], p["max"]) for p in profiles
         ]
 
-    def _select_delay_profile(self) -> Tuple[float, float]:
+    def _select_delay_profile(self) -> tuple[float, float]:
         """Selects a delay profile based on the current configured probabilities."""
-        selected_range: Tuple[float, float] = random.choices(
+        selected_range: tuple[float, float] = random.choices(
             self.delay_ranges, weights=self.delay_weights, k=1
         )[0]
         return selected_range
 
-    def _get_current_simulated_values(self) -> Tuple[float, float]:
-        """Generates random values based on the current live configuration ranges."""
+    def _get_current_simulated_values(self) -> float:
+        """Generates values based on the current live configuration ranges."""
         temperature: float = random.uniform(
             self.current_temp_min, self.current_temp_max
         )
-        power_consumption: float = random.uniform(
-            self.current_power_min, self.current_power_max
-        )
-        return temperature, power_consumption
+        return temperature
+
+    def _discharge_battery(self, value: float) -> None:
+        """Discharges the battery based on current activity."""
+        self.current_battery_charge -= value
+        self.discharged = True if self.current_battery_charge <= 0 else False
 
     async def _apply_gradual_transition(self) -> None:
         """Asynchronously transitions the resource behavior over the specified duration."""
@@ -88,20 +125,21 @@ class AsyncIoTResource(resource.Resource):
 
         # Current starting values for the transition
         start_temp_min, start_temp_max = self.current_temp_min, self.current_temp_max
-        start_power_min, start_power_max = (
-            self.current_power_min,
-            self.current_power_max,
+        start_battery_transmit_discharge, start_battery_idle_discharge = (
+            self.current_battery_transmit_discharge,
+            self.current_battery_idle_discharge,
         )
         start_drop_percentage = self.current_drop_percentage
-        start_delay_profiles = (
-            self.initial_delay_profiles
-        )  # For simplicity, we only transition between initial and target profiles in the current implementation
+        start_delay_profiles = self.initial_delay_profiles  # For simplicity, we only transition between initial and target profiles in the current implementation
 
         # Target values
-        target_temp_min, target_temp_max = self.target_config["temperature_range"]
-        target_power_min, target_power_max = self.target_config["power_range"]
-        target_drop_percentage = self.target_config["drop_percentage"]
-        target_delay_profiles = self.target_config["delay_profiles"]
+        target_temp_min, target_temp_max = self.target_config.temperature_range
+        target_drop_percentage = self.target_config.drop_percentage
+        target_delay_profiles = self.target_config.delay_profiles
+        target_battery_transmit_discharge = (
+            self.target_config.battery_transmit_discharge
+        )
+        target_battery_idle_discharge = self.target_config.battery_idle_discharge
 
         start_time = time.time()
 
@@ -118,15 +156,19 @@ class AsyncIoTResource(resource.Resource):
             self.current_temp_max = (
                 start_temp_max + (target_temp_max - start_temp_max) * progress
             )
-            self.current_power_min = (
-                start_power_min + (target_power_min - start_power_min) * progress
-            )
-            self.current_power_max = (
-                start_power_max + (target_power_max - start_power_max) * progress
-            )
             self.current_drop_percentage = (
                 start_drop_percentage
                 + (target_drop_percentage - start_drop_percentage) * progress
+            )
+            self.current_battery_transmit_discharge = (
+                start_battery_transmit_discharge
+                + (target_battery_transmit_discharge - start_battery_transmit_discharge)
+                * progress
+            )
+            self.current_battery_idle_discharge = (
+                start_battery_idle_discharge
+                + (target_battery_idle_discharge - start_battery_idle_discharge)
+                * progress
             )
 
             # For delay profiles, this implementation simply switches to the target profile after 50% transition
@@ -136,19 +178,27 @@ class AsyncIoTResource(resource.Resource):
             else:
                 self._set_delay_profiles(start_delay_profiles)
 
-            # Print status update every 5 seconds (or adjust frequency as needed)
-            if int(elapsed) % 5 == 0 and int(elapsed) == elapsed:
+            # Print status update every 10 seconds (or adjust frequency as needed)
+            if int(elapsed) % 10 == 0:
+                print(f"  [Transition Progress: {progress * 100:.0f}%]")
                 print(
-                    f"   [Transition Progress: {progress*100:.0f}%] Temp Range: {self.current_temp_min:.1f}-{self.current_temp_max:.1f}, Drop Rate: {self.current_drop_percentage:.1f}%"
+                    f"    Temp Range: {self.current_temp_min:.1f}-{self.current_temp_max:.1f}"
+                )
+                print(f"    Drop Rate: {self.current_drop_percentage:.1f}%")
+                print(
+                    f"    Battery Transmit Discharge: {self.current_battery_transmit_discharge:.2f}"
+                )
+                print(
+                    f"    Battery Idle Discharge: {self.current_battery_idle_discharge:.2f}"
                 )
 
             await asyncio.sleep(1)  # Check and update every second
 
         # Ensure final state is exactly the target state
         self.current_temp_min, self.current_temp_max = target_temp_min, target_temp_max
-        self.current_power_min, self.current_power_max = (
-            target_power_min,
-            target_power_max,
+        self.current_battery_transmit_discharge, self.current_battery_idle_discharge = (
+            target_battery_transmit_discharge,
+            target_battery_idle_discharge,
         )
         self.current_drop_percentage = target_drop_percentage
         self._set_delay_profiles(target_delay_profiles)
@@ -161,40 +211,37 @@ class AsyncIoTResource(resource.Resource):
 
     async def render_post(self, request: Message) -> Message:
         """Handles POST request to trigger a disaster behavior change."""
+        # Error if battery is discharged
+        if self.discharged:
+            return Message(
+                code=Code.SERVICE_UNAVAILABLE,
+                payload=b"Battery discharged. Device cannot process requests.",
+            )
+        self._discharge_battery(self.current_battery_transmit_discharge)
+
+        # get payload
         try:
-            payload: Dict[str, Any] = json.loads(request.payload.decode("utf-8"))
+            payload: dict[str, Any] = json.loads(request.payload.decode("utf-8"))
         except json.JSONDecodeError:
             return Message(code=Code.BAD_REQUEST, payload=b"Invalid JSON payload.")
 
-        # Required fields in the disaster configuration
-        required_keys = [
-            "disaster_type",
-            "temperature_range",
-            "power_range",
-            "drop_percentage",
-            "delay_profiles",
-            "transition_duration_s",
-        ]
-        if not all(k in payload for k in required_keys):
+        ## Validate Disaster Config
+        try:
+            self.target_config: DisasterConfig = DisasterConfig.from_dict(payload)
+            print(f"\n🚨 Received Disaster Mode Trigger: {self.target_config}")
+        except Exception as e:
             return Message(
                 code=Code.BAD_REQUEST,
-                payload=b"Missing required fields in disaster config.",
+                payload=f"Disaster Config validation error: {e}".encode("utf-8"),
             )
+
+        self.disaster_type = self.target_config.disaster_type
+        self.transition_duration = self.target_config.transition_duration_s
 
         # Stop any existing transition task
         if self.transition_task:
             self.transition_task.cancel()
             print("🛑 Canceled previous transition task.")
-
-        # Set up the new target configuration and transition parameters
-        self.disaster_type = payload["disaster_type"]
-        self.target_config = {
-            "temperature_range": tuple(payload["temperature_range"]),
-            "power_range": tuple(payload["power_range"]),
-            "drop_percentage": payload["drop_percentage"],
-            "delay_profiles": payload["delay_profiles"],
-        }
-        self.transition_duration = float(payload["transition_duration_s"])
 
         # Start the asynchronous transition task
         loop = asyncio.get_event_loop()
@@ -212,10 +259,16 @@ class AsyncIoTResource(resource.Resource):
             content_format=ContentFormat.JSON,
         )
 
-    async def render_get(self, request: Message) -> Message:
+    async def render_get(self, _request: Message) -> Message:
         """Asynchronously handles an incoming GET request."""
+        # Error if battery is discharged
+        if self.discharged:
+            return Message(
+                code=Code.SERVICE_UNAVAILABLE,
+                payload=b"Battery discharged. Device cannot process requests.",
+            )
 
-        # --- 1. Drop Simulation (uses current_drop_percentage) ---
+        # Drop Simulation
         if random.random() * 100 < self.current_drop_percentage:
             print(
                 f"🚨 Dropping packet (Current Rate: {self.current_drop_percentage:.1f}%)"
@@ -223,7 +276,10 @@ class AsyncIoTResource(resource.Resource):
             await asyncio.sleep(20)
             raise NotFound("Simulated drop leads to client timeout/failure.")
 
-        # --- 2. Probabilistic Random Delay (uses current delay profiles) ---
+        # Battery discharge on each request
+        self._discharge_battery(self.current_battery_transmit_discharge)
+
+        # Probabilistic Random Delay
         min_delay, max_delay = self._select_delay_profile()
         delay = random.uniform(min_delay, max_delay)
 
@@ -233,17 +289,15 @@ class AsyncIoTResource(resource.Resource):
             )
             await asyncio.sleep(delay)
 
-        # --- 3. Generate Random Values (uses current ranges) ---
-        temperature, power_consumption = self._get_current_simulated_values()
+        # Generate Random Values
+        temperature = self._get_current_simulated_values()
 
-        # --- 4. Prepare Response Payload (JSON Format) ---
-        response_data: Dict[str, Any] = {
+        # Prepare Response Payload
+        response_data: dict[str, str | float | dict[str, float]] = {
             "timestamp": time.time(),
             "status": self.disaster_type,
             "temperature": f"{temperature:.2f}",
-            "power_consumption": f"{power_consumption:.2f}",
-            "unit_temperature": "C",
-            "unit_power": "W",
+            "battery": f"{self.current_battery_charge:.2f}",
             "geo_coordinate": self.coordinate,
         }
 
@@ -260,8 +314,6 @@ class AsyncIoTResource(resource.Resource):
 
 ## Main Server Function (unchanged)
 async def main() -> None:
-
-    # 1. Check for command line argument
     if len(sys.argv) < 2:
         print(
             "🛑 ERROR: Please provide the path to the configuration JSON file as a command line argument."
@@ -271,36 +323,17 @@ async def main() -> None:
 
     CONFIG_FILE: str = sys.argv[1]
 
-    # 2. Check and Load configuration file
     if not os.path.exists(CONFIG_FILE):
         print(f"🛑 ERROR: Configuration file not found at '{CONFIG_FILE}'.")
         return
 
-    CONFIG: Dict[str, Any]
     try:
-        with open(CONFIG_FILE, "r") as f:
-            CONFIG = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"🛑 ERROR: Failed to parse JSON file: {e}")
-        return
+        config = DeviceConfig.from_file(CONFIG_FILE)
     except Exception as e:
         print(f"🛑 ERROR: An unexpected error occurred while reading the file: {e}")
         return
 
-    # --- Configuration Validation & Extraction ---
-    DELAY_PROFILES: List[Dict[str, Any]] = CONFIG.get("delay_profiles", [])
-    COORDINATE: Optional[Dict[str, float]] = CONFIG.get("coordinate")
-
-    if not DELAY_PROFILES:
-        print("🛑 ERROR: 'delay_profiles' is missing or empty in the config file.")
-        return
-
-    if not COORDINATE or "latitude" not in COORDINATE or "longitude" not in COORDINATE:
-        print(
-            "🛑 ERROR: 'coordinate' with 'latitude' and 'longitude' is missing or invalid in the config file."
-        )
-        return
-
+    DELAY_PROFILES = config.delay_profiles
     total_probability: float = sum(p.get("probability", 0) for p in DELAY_PROFILES)
     if total_probability != 100:
         print(
@@ -309,26 +342,31 @@ async def main() -> None:
         return
 
     # Extract required server parameters
-    SERVER_HOST: str = CONFIG.get("server_host", "0.0.0.0")
-    SERVER_PORT: int = CONFIG.get("server_port", 5683)
-    RESOURCE_PATH: List[str] = CONFIG.get("resource_path", ["device", "data"])
+    SERVER_HOST = config.server_host
+    SERVER_PORT = config.server_port
+    RESOURCE_PATH = config.resource_path
 
-    # 3. Create the resource tree
+    # Create the resource tree
     root: Site = resource.Site()
-    root.add_resource(tuple(RESOURCE_PATH), AsyncIoTResource(**CONFIG))
+    root.add_resource(tuple(RESOURCE_PATH), AsyncIoTResource(config))
 
-    # 4. Correctly set up aiocoap server context
-    await Context.create_server_context(root, bind=(SERVER_HOST, SERVER_PORT))
+    # Set up aiocoap server context
+    _ = await Context.create_server_context(root, bind=(SERVER_HOST, SERVER_PORT))
 
     # --- Print Confirmation ---
     print("--- Async CoAP Simulator (aiocoap) Running ---")
     print(f"Loaded config from: {CONFIG_FILE}")
+    print(f"UUID: {config.uuid}")
     print(f"Binding: coap://{SERVER_HOST}:{SERVER_PORT}")
     print(f"Resource Path: /{'/'.join(RESOURCE_PATH)}")
     print(
-        f"Geo Coordinates: Lat {COORDINATE['latitude']}, Lon {COORDINATE['longitude']}"
+        f"Geo Coordinates: Lat {config.coordinate['latitude']:.4f}, Lon {config.coordinate['longitude']:.4f}"
     )
-    print(f"Total Drop Percentage: {CONFIG['drop_percentage']}%")
+    print("Battery information:")
+    print(f"  Initial charge: {config.battery_charge:.2f}")
+    print(f"  Request discharge: {config.battery_transmit_discharge:.2f}")
+    print(f"  Idle discharge: {config.battery_idle_discharge:.2f}")
+    print(f"Total Drop Percentage: {config.drop_percentage:.2f}%")
     print("Delay Profiles:")
     for profile in DELAY_PROFILES:
         print(
@@ -336,7 +374,6 @@ async def main() -> None:
         )
     print("-------------------------------------------\n")
 
-    # 5. Run forever
     await asyncio.get_event_loop().create_future()
 
 

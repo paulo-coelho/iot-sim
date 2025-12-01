@@ -13,10 +13,6 @@
     20.0,
     30.0
   ],
-  "power_range": [
-    5.0,
-    15.0
-  ],
   "drop_percentage": 5,
   "delay_profiles": [
     {
@@ -34,5 +30,9 @@
       "min": 0.5,
       "max": 0.8
     }
-  ]
+  ],
+  "uuid": "93cb4328-e2ee-4e45-963e-92a9c3e6f951",
+  "battery_idle_discharge": 4,
+  "battery_transmit_discharge": 20,
+  "battery_charge": 3801
 }
