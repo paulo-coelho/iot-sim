@@ -1,5 +1,5 @@
 {
-  "disaster_type": "Earthquake",
+  "event_name": "Earthquake",
   "temperature_range": [
     35.0,
     45.0
@@ -14,5 +14,10 @@
       "max": 12.0
     }
   ],
-  "transition_duration_s": 120
+  "transition_duration_s": 120,
+  "event_type": "transient",
+  "transient_event_duration_s": 60,
+  "transient_event_return_s": 30
+
+
 }

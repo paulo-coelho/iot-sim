@@ -27,21 +27,39 @@ class DeviceConfig(BaseModel):
         return cls(**data)
 
 
-class DisasterConfig(BaseModel):
-    disaster_type: str
+class EventConfig(BaseModel):
+    event_name: str
+    event_type: str = "permanent"
     temperature_range: tuple[float, float]
     battery_transmit_discharge: float
     battery_idle_discharge: float
     drop_percentage: float
     delay_profiles: list[dict[str, int | float]]
     transition_duration_s: float
+    transient_event_duration_s: float = 0
+    transient_event_return_s: float = 0
 
     @classmethod
-    def from_file(cls, filepath: str) -> "DisasterConfig":
+    def from_file(cls, filepath: str) -> "EventConfig":
         with open(filepath, "r") as f:
             data = json.load(f)
         return cls(**data)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DisasterConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "EventConfig":
         return cls(**data)
+
+    @classmethod
+    def from_device_config(cls, device_config: DeviceConfig) -> "EventConfig":
+        return cls(
+            event_name="Normal",
+            event_type="permanent",
+            temperature_range=device_config.temperature_range,
+            battery_transmit_discharge=device_config.battery_transmit_discharge,
+            battery_idle_discharge=device_config.battery_idle_discharge,
+            drop_percentage=device_config.drop_percentage,
+            delay_profiles=device_config.delay_profiles,
+            transition_duration_s=0,
+            transient_event_duration_s=0,
+            transient_event_return_s=0,
+        )
