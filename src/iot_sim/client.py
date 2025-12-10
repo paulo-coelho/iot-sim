@@ -56,10 +56,8 @@ async def main() -> None:
     """
     if len(sys.argv) < 2:
         print("🛑 ERROR: Please provide the CoAP endpoint as the first argument.")
-        print("Usage (GET): uv run coap_client.py <endpoint>")
-        print(
-            "Usage (POST): uv run coap_client.py <endpoint> <path/to/event_config.json>"
-        )
+        print("Usage (GET): uv run iot-client <endpoint>")
+        print("Usage (POST): uv run iot-client <endpoint> <path/to/event_config.json>")
         sys.exit(1)
 
     endpoint = sys.argv[1]
@@ -93,7 +91,7 @@ async def main() -> None:
         await protocol.shutdown()
 
 
-if __name__ == "__main__":
+def run() -> None:
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

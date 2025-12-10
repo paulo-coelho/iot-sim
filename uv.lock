@@ -23,7 +23,7 @@ wheels = [
 [[package]]
 name = "iot-sim"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "aiocoap" },
     { name = "pydantic" },

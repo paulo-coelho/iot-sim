@@ -44,16 +44,20 @@ It allows users to simulate data generation, device communication, and interacti
 
   ```bash
   uv venv --python 3.12
-  uv pip install
+  uv pip install .
   ```
 
 - Run the simulator with a scenario file:
 
   ```bash
-  uv run sim.py scenarios/device-model.json
+  uv run iot-sim scenarios/device-model.json
   ```
 
 - Run the client to interact with the simulated device:
+
   ```bash
-  uv run client.py coap://127.0.0.1:5001/device/data
+  # GET request - fetch device data
+  uv run iot-client coap://127.0.0.1:5001/device/data
+  # POST request - send an event to the device
+  uv run iot-client coap://127.0.0.1:5001/device/data <event.json>
   ```
