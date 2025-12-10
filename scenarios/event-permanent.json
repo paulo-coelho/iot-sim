@@ -1,23 +1,19 @@
 {
-  "event_name": "Earthquake",
+  "event_name": "High drop rate, high temperature",
   "temperature_range": [
     35.0,
     45.0
   ],
   "battery_transmit_discharge": 20,
   "battery_idle_discharge": 4,
-  "drop_percentage": 80,
+  "drop_percentage": 30,
   "delay_profiles": [
     {
       "probability": 100,
-      "min": 5.0,
-      "max": 12.0
+      "min": 0.3,
+      "max": 2.0
     }
   ],
   "transition_duration_s": 120,
-  "event_type": "transient",
-  "transient_event_duration_s": 60,
-  "transient_event_return_s": 30
-
-
+  "event_type": "permanent"
 }

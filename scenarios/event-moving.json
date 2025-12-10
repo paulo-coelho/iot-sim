@@ -1,0 +1,10 @@
+{
+  "event_name": "Moving!!!",
+  "coordinate": {
+    "latitude": 42.0,
+    "longitude": -76.0
+  },
+  "drop_percentage": 20,
+  "transition_duration_s": 100,
+  "event_type": "permanent"
+}

@@ -27,4 +27,4 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 1
 fi
 
-uv run sim.py "$CONFIG_FILE"
+uv run iot-sim "$CONFIG_FILE"

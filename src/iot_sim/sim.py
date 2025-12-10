@@ -22,6 +22,7 @@ class AsyncIoTResource(resource.Resource):
         super().__init__()
         global logger
         logger = logging.getLogger("iot-sim")
+
         # Store the config object
         self.device_config: DeviceConfig = device_config
 
@@ -109,6 +110,7 @@ class AsyncIoTResource(resource.Resource):
             self.current_battery_idle_discharge,
         )
         start_drop_percentage = self.current_drop_percentage
+        start_coordinate = self.current_coordinate
 
         # Target values
         target_temp_min, target_temp_max = self.target_event.temperature_range
@@ -116,6 +118,7 @@ class AsyncIoTResource(resource.Resource):
         target_delay_profiles = self.target_event.delay_profiles
         target_battery_transmit_discharge = self.target_event.battery_transmit_discharge
         target_battery_idle_discharge = self.target_event.battery_idle_discharge
+        target_coordinate = self.target_event.coordinate
 
         start_time = time.time()
 
@@ -146,6 +149,14 @@ class AsyncIoTResource(resource.Resource):
                 + (target_battery_idle_discharge - start_battery_idle_discharge)
                 * progress
             )
+            self.current_coordinate = {
+                "latitude": start_coordinate["latitude"]
+                + (target_coordinate["latitude"] - start_coordinate["latitude"])
+                * progress,
+                "longitude": start_coordinate["longitude"]
+                + (target_coordinate["longitude"] - start_coordinate["longitude"])
+                * progress,
+            }
 
             # For delay profiles, this implementation simply switches to the target profile after 50% transition
             # A more complex LERP could interpolate min/max values of profiles, but a simple switch is used here.
@@ -165,6 +176,9 @@ class AsyncIoTResource(resource.Resource):
                 logger.debug(
                     f"    Battery Idle Discharge: {self.current_battery_idle_discharge:.2f}"
                 )
+                logger.debug(
+                    f"   Geo Coordinates: Lat {self.current_coordinate['latitude']:.4f}, Lon {self.current_coordinate['longitude']:.4f}"
+                )
 
             await asyncio.sleep(1)  # Check and update every second
 
@@ -176,6 +190,7 @@ class AsyncIoTResource(resource.Resource):
             target_battery_idle_discharge,
         )
         self.current_drop_percentage = target_drop_percentage
+        self.current_coordinate = target_coordinate
         self._set_delay_profiles(target_delay_profiles)
 
         logger.info(

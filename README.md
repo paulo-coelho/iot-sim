@@ -59,5 +59,18 @@ It allows users to simulate data generation, device communication, and interacti
   # GET request - fetch device data
   uv run iot-client coap://127.0.0.1:5001/device/data
   # POST request - send an event to the device
-  uv run iot-client coap://127.0.0.1:5001/device/data <event.json>
+  uv run iot-client coap://127.0.0.1:5001/device/data scenarios/event-transient.json
+  ```
+
+## Scripts
+
+The following scripts are available in the `scripts/` folder (run from the project root folder):
+
+- `run-iot.sh`: Run the IoT simulator with from a specific folder.
+  Files must follow a naming convention.
+  See `scenarios/2x50/` for an example.
+
+  ```bash
+  # Usage: scripts/run-iot.sh <folder> <region> <device_id>
+  ./scripts/run-iot.sh scenarios/2x50 1 1
   ```

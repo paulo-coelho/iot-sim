@@ -36,7 +36,7 @@ for (( i=START; i<=END; i++ )); do
     echo "Warning: Config file '$CONFIG_FILE' does not exist. Skipping."
     continue
   fi
-  uv run sim.py "$CONFIG_FILE" &
+  uv run iot-sim "$CONFIG_FILE" &
   PIDS+=($!)
 done
 wait
