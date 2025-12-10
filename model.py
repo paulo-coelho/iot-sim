@@ -35,7 +35,8 @@ class EventConfig(BaseModel):
     battery_idle_discharge: float
     drop_percentage: float
     delay_profiles: list[dict[str, int | float]]
-    transition_duration_s: float
+    coordinate: dict[str, float] = {}
+    transition_duration_s: float = 0
     transient_event_duration_s: float = 0
     transient_event_return_s: float = 0
 
@@ -50,6 +51,34 @@ class EventConfig(BaseModel):
         return cls(**data)
 
     @classmethod
+    def from_incomplete_dict(
+        cls, data: dict[str, Any], old: "EventConfig"
+    ) -> "EventConfig":
+        return cls(
+            event_name=data.get("event_name", old.event_name),
+            event_type=data.get("event_type", old.event_type),
+            temperature_range=data.get("temperature_range", old.temperature_range),
+            battery_transmit_discharge=data.get(
+                "battery_transmit_discharge", old.battery_transmit_discharge
+            ),
+            battery_idle_discharge=data.get(
+                "battery_idle_discharge", old.battery_idle_discharge
+            ),
+            drop_percentage=data.get("drop_percentage", old.drop_percentage),
+            delay_profiles=data.get("delay_profiles", old.delay_profiles),
+            coordinate=data.get("coordinate", old.coordinate),
+            transition_duration_s=data.get(
+                "transition_duration_s", old.transition_duration_s
+            ),
+            transient_event_duration_s=data.get(
+                "transient_event_duration_s", old.transient_event_duration_s
+            ),
+            transient_event_return_s=data.get(
+                "transient_event_return_s", old.transient_event_return_s
+            ),
+        )
+
+    @classmethod
     def from_device_config(cls, device_config: DeviceConfig) -> "EventConfig":
         return cls(
             event_name="Normal",
@@ -59,6 +88,7 @@ class EventConfig(BaseModel):
             battery_idle_discharge=device_config.battery_idle_discharge,
             drop_percentage=device_config.drop_percentage,
             delay_profiles=device_config.delay_profiles,
+            coordinate=device_config.coordinate,
             transition_duration_s=0,
             transient_event_duration_s=0,
             transient_event_return_s=0,

@@ -17,3 +17,5 @@ reportUnusedCallResult = false
 reportUnknownVariableType = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
+reportAny = false
+reportExplicitAny = false

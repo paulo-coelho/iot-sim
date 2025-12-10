@@ -12,13 +12,14 @@ from aiocoap import Code, ContentFormat, Context, Message, resource
 from aiocoap.error import NotFound
 from aiocoap.resource import Site
 
-from config_models import DeviceConfig, EventConfig
+from model import DeviceConfig, EventConfig
 
 
 class AsyncIoTResource(resource.Resource):
     """
     An observable CoAP resource that simulates sensor data with random
-    values, probabilistic delays, and packet drops, including a disaster mode.
+    values, probabilistic delays, and packet drops, including an event trigger
+    mechanism to simulate disaster, mobility and general condition changes.
     """
 
     def __init__(self, device_config: DeviceConfig) -> None:
@@ -93,7 +94,9 @@ class AsyncIoTResource(resource.Resource):
     def _discharge_battery(self, value: float) -> None:
         """Discharges the battery based on current activity."""
         self.current_battery_charge -= value
-        self.discharged = True if self.current_battery_charge <= 0 else False
+        if self.current_battery_charge <= 0:
+            self.current_battery_charge = 0
+            self.discharged = True
 
     async def _apply_gradual_transition(self, transition_duration_s: float) -> None:
         """Asynchronously transitions the resource behavior over the specified duration."""
@@ -199,7 +202,9 @@ class AsyncIoTResource(resource.Resource):
 
         ## Validate Disaster Config
         try:
-            self.target_event: EventConfig = EventConfig.from_dict(payload)
+            self.target_event: EventConfig = EventConfig.from_incomplete_dict(
+                payload, self.current_event
+            )
             logger.info(f"\n🚨 Received Event Mode Trigger: {self.target_event}")
         except Exception as e:
             return Message(
@@ -304,34 +309,34 @@ class AsyncIoTResource(resource.Resource):
 
 ## Main Server Function (unchanged)
 async def main() -> None:
-    # Load logging configuration
     with open("log-config.json", "r") as f:
         log_config = json.load(f)
-    # Generate timestamped log filename
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    log_filename = f"log-iot-sim-{timestamp}.log"
+    logs_dir = "logs"
+    os.makedirs(logs_dir, exist_ok=True)
+
+    CONFIG_FILE: str = sys.argv[1]
+    if not os.path.exists(CONFIG_FILE):
+        print(f"🛑 Configuration file not found at '{CONFIG_FILE}'.")
+        return
+
+    try:
+        config = DeviceConfig.from_file(CONFIG_FILE)
+    except Exception as e:
+        print(f"🛑 An unexpected error occurred while reading the file: {e}")
+        return
+
+    # Set log filename using device UUID
+    log_filename = os.path.join(logs_dir, f"dev-{config.uuid}.log")
     log_config["handlers"]["file"]["filename"] = log_filename
     logging.config.dictConfig(log_config)
     global logger
     logger = logging.getLogger("iot-sim")
 
     if len(sys.argv) < 2:
-        logger.error(
+        print(
             "🛑 Please provide the path to the configuration JSON file as a command line argument."
         )
-        logger.info("Usage: python iot-sim.py /path/to/simulator_config.json")
-        return
-
-    CONFIG_FILE: str = sys.argv[1]
-
-    if not os.path.exists(CONFIG_FILE):
-        logger.error(f"🛑 Configuration file not found at '{CONFIG_FILE}'.")
-        return
-
-    try:
-        config = DeviceConfig.from_file(CONFIG_FILE)
-    except Exception as e:
-        logger.error(f"🛑 An unexpected error occurred while reading the file: {e}")
+        print("Usage: python iot-sim.py /path/to/simulator_config.json")
         return
 
     DELAY_PROFILES = config.delay_profiles
@@ -342,19 +347,16 @@ async def main() -> None:
         )
         return
 
-    # Extract required server parameters
     SERVER_HOST = config.server_host
     SERVER_PORT = config.server_port
     RESOURCE_PATH = config.resource_path
 
-    # Create the resource tree
     root: Site = resource.Site()
     root.add_resource(tuple(RESOURCE_PATH), AsyncIoTResource(config))
 
     # Set up aiocoap server context
     _ = await Context.create_server_context(root, bind=(SERVER_HOST, SERVER_PORT))
 
-    # --- Print Confirmation ---
     logger.info("--- Async CoAP Simulator (aiocoap) Running ---")
     logger.info(f"Loaded config from: {CONFIG_FILE}")
     logger.info(f"UUID: {config.uuid}")
