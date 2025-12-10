@@ -11,9 +11,17 @@ It allows users to simulate data generation, device communication, and interacti
   - Battery levels
   - Network latency
   - Drop rates
-- Simulation of atypical behaviors ("disasters") (see `scenarios/disaster-model.json`)
+  - Coordinates
+- Simulation of atypical behaviors or any event that changes the initial values (see `scenarios/event-model.json`)
+  - Events can be transient or permanent
   - Received by device via CoAP POST requests
-- Orchestration of multiple devices (early development stage)
+
+## TODO
+
+- Orchestration of multiple devices:
+  - Start/stop multiple device simulations
+  - Manage sequence of events across devices
+  - Aggregate data from multiple devices (MQTT?)
 
 ## Requirements
 
@@ -42,10 +50,10 @@ It allows users to simulate data generation, device communication, and interacti
 - Run the simulator with a scenario file:
 
   ```bash
-  uv run iot-sim.py scenarios/device-model.json
+  uv run sim.py scenarios/device-model.json
   ```
 
 - Run the client to interact with the simulated device:
   ```bash
-  uv run coap-client.py coap://127.0.0.1:5001/device/data
+  uv run client.py coap://127.0.0.1:5001/device/data
   ```
