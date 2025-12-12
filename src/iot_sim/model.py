@@ -3,6 +3,19 @@ from typing import Any
 import json
 
 
+class CoAPReply(BaseModel):
+    uuid: str
+    timestamp: float
+    status: str
+    temperature: float
+    battery: float
+    coordinate: dict[str, float]
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "CoAPReply":
+        return cls.model_validate_json(json_str)
+
+
 class DeviceConfig(BaseModel):
     uuid: str
     temperature_range: tuple[float, float]

@@ -1,0 +1,6 @@
+{
+  "devices": [
+    "coap://localhost:5001/device/data",
+    "coap://localhost:5002/device/data"
+  ]
+}

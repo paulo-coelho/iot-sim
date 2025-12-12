@@ -1,5 +1,4 @@
 [build-system]
-# Tells uv and other tools to use Setuptools to build the package.
 requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
@@ -10,29 +9,21 @@ description = "IoT simulation framework for CoAP devices"
 readme = "README.md"
 requires-python = ">=3.12"
 
-# Your project's runtime dependencies
 dependencies = [
     "aiocoap>=0.4.17",
+    "aiomqtt>=1.0.0",
     "pydantic>=2.12.5",
     "scapy>=2.6.1",
 ]
 
-# Defines the command-line script for users
-# When installed, running 'iot-sim' will execute the run() function 
-# in the iot_sim package (i.e., src/iot_sim/__init__.py:run).
 [project.scripts]
 iot-sim = "iot_sim:run"
 iot-client = "iot_sim.client:run"
+iot-gw = "iot_sim.gw:run"
 
-# --- Tool-Specific Configuration ---
-
-# Configuration specifically for the Setuptools build backend
 [tool.setuptools]
-# This is the critical line: It tells Setuptools that your source code 
-# should be found in the 'src' directory, allowing it to find 'iot_sim' inside.
 package-dir = {"" = "src"}
 
-# Configuration for the Pyright type checker
 [tool.pyright]
 reportUnannotatedClassAttribute = false
 reportMissingTypeStubs = false

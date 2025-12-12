@@ -8,7 +8,7 @@ from typing import Any
 from aiocoap import Code, ContentFormat, Message, resource
 from aiocoap.error import NotFound
 
-from .model import DeviceConfig, EventConfig
+from .model import DeviceConfig, EventConfig, CoAPReply
 
 
 class AsyncIoTResource(resource.Resource):
@@ -300,15 +300,16 @@ class AsyncIoTResource(resource.Resource):
         temperature = self._get_current_simulated_values()
 
         # Prepare Response Payload
-        response_data: dict[str, str | float | dict[str, float]] = {
-            "timestamp": time.time(),
-            "status": self.current_event.event_name,
-            "temperature": f"{temperature:.2f}",
-            "battery": f"{self.current_battery_charge:.2f}",
-            "geo_coordinate": self.current_coordinate,
-        }
+        response_data: CoAPReply = CoAPReply(
+            uuid=self.device_config.uuid,
+            timestamp=time.time(),
+            status=self.current_event.event_name,
+            temperature=temperature,
+            battery=self.current_battery_charge,
+            coordinate=self.current_coordinate,
+        )
 
-        payload_bytes: bytes = json.dumps(response_data).encode("utf-8")
+        payload_bytes: bytes = response_data.model_dump_json().encode("utf-8")
 
         logger.debug(f"✅ Responding with: {payload_bytes.decode('utf-8')}")
 
