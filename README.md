@@ -62,6 +62,15 @@ It allows users to simulate data generation, device communication, and interacti
   uv run iot-client coap://127.0.0.1:5001/device/data scenarios/event-transient.json
   ```
 
+## IoT Gateway
+
+- A simple IoT Gateway is also provided to aggregate data from multiple devices.
+- The reply from each device is published to an MQTT broker.
+- Run the gateway with request interval, device list and topic prefix:
+  ```bash
+  uv run iot-gw -d scenarios/devices02.json -i 5000 -t "/gw/001"
+  ```
+
 ## Scripts
 
 The following scripts are available in the `scripts/` folder (run from the project root folder):
