@@ -1,0 +1,121 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#controls {
+  padding: 10px;
+  background-color: #f4f4f4;
+  border-bottom: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.control-group-line {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#map-container {
+  flex-grow: 1;
+  position: relative;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+}
+
+.device-marker {
+  text-align: center;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.device-icon {
+  line-height: 1;
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+/* Status colors */
+.status-Normal .device-icon {
+  /* Green: Healthy Battery, No Error */
+  color: #4CAF50;
+  font-weight: bold;
+  text-shadow: 0 0 8px #4CAF50;
+}
+
+.status-Warning .device-icon {
+  /* Yellow: Low Battery (< 10%) */
+  color: #FFC107;
+  font-weight: bold;
+  text-shadow: 0 0 8px #FFC107;
+}
+
+.status-Error .device-icon {
+  /* Red: ERROR Status */
+  color: #F44336;
+  font-weight: bold;
+  text-shadow: 0 0 8px #F44336;
+}
+
+.device-info {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+  font-size: 12px;
+  pointer-events: none;
+
+  /* Default State (Hidden) */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+/* Show on Hover */
+.device-marker:hover .device-info {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Global Override (Show All) */
+#map-container.show-all-info .device-info {
+  opacity: 1;
+  visibility: visible;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.1;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.blinking .device-icon {
+  animation: blink 1s linear infinite;
+}

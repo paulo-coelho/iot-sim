@@ -27,6 +27,7 @@ It allows users to simulate data generation, device communication, and interacti
 
 - Python 3.12+
 - uv
+- mosquitto (for MQTT broker)
 
 ## Usage
 
@@ -66,10 +67,43 @@ It allows users to simulate data generation, device communication, and interacti
 
 - A simple IoT Gateway is also provided to aggregate data from multiple devices.
 - The reply from each device is published to an MQTT broker.
-- Run the gateway with request interval, device list and topic prefix:
-  ```bash
-  uv run iot-gw -d scenarios/devices02.json -i 5000 -t "/gw/001"
+
+### Mosquitto Configuration
+
+- To use all the resources of the simulation enable websockets in Mosquitto by adding the following lines to the `mosquitto.conf` file:
+
+  ```conf
+  # default listener
+  listener 1883
+  protocol mqtt
+
+  # websocket listener
+  listener 9001
+  protocol websockets
+  allow_anonymous true
   ```
+
+### Running the Gateway
+
+- Run the gateway with request interval, device list and topic prefix:
+
+  ```bash
+  uv run iot-gw -d scenarios/devices-01-50.json -i 5000 -t "/gw/001/"
+  ```
+
+- You can run as many gateways as you want, just change the topic prefix and the configuration file:
+
+  ```bash
+  uv run iot-gw -d scenarios/devices-02-50.json -i 5000 -t "/gw/002/"
+  ```
+
+## IoT MQTT monitor
+
+- In folder `web` you will find a HTML page that can be used to monitor devices live information as they are published by the IoT gateways.
+- Simple open the `index.html` file in a web browser and configure the MQTT broker connection parameters and the topic of interest (`/gw/+/`, for instance).
+- Here is an screenshot of a scenario with 2 gateways and devices in Brazil and France.
+
+![MQTT Broker](./web/screenshot.png)
 
 ## Scripts
 
@@ -81,5 +115,14 @@ The following scripts are available in the `scripts/` folder (run from the proje
 
   ```bash
   # Usage: scripts/run-iot.sh <folder> <region> <device_id>
-  ./scripts/run-iot.sh scenarios/2x50 1 1
+  ./scripts/run-iot.sh scenarios/2x50 1 1 # region 1, device 1
+  ```
+
+- `run-iot-range.sh`: Run a range of IoT simulators with from a specific folder.
+  Files must follow a naming convention.
+  See `scenarios/2x50/` for an example.
+
+  ```bash
+  # Usage: scripts/run-iot-range.sh <folder> <region> <device_id_start> <device_id_end>
+  ./scripts/run-iot-range.sh scenarios/2x50 1 1 50 # region 1, devices from 1 to 50
   ```
