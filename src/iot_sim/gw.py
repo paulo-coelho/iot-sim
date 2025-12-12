@@ -23,6 +23,9 @@ async def send_coap_get(
             )
         else:
             response = await protocol.request(request).response
+        if response.code == Code.NOT_FOUND:
+            print(f"[CoAP] 404 Not Found for {uri}")
+            return None
         return response.payload.decode("utf-8")
     except asyncio.TimeoutError:
         print(f"[CoAP] Timeout requesting {uri} (>{timeout:.2f}s)")
@@ -46,6 +49,7 @@ async def periodic_request_and_publish(
     reply: CoAPReply | None = None
 
     while True:
+        start_time = asyncio.get_event_loop().time()
         payload = await send_coap_get(protocol, uri, timeout=timeout)
 
         if payload is not None:
@@ -64,12 +68,14 @@ async def periodic_request_and_publish(
             async def publish_task():
                 try:
                     await mqtt_client.publish(topic, reply.model_dump_json())
-                    print(f"[MQTT] Published payload from {uri} to topic '{topic}'")
                 except Exception as e:
                     print(f"[MQTT] Error publishing payload from {uri}: {e}")
 
             asyncio.create_task(publish_task())
-        await asyncio.sleep(interval_ms / 1000)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        sleep_time = (interval_ms / 1000) - elapsed
+        if sleep_time > 0:
+            await asyncio.sleep(sleep_time)
 
 
 async def main() -> None:
