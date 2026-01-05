@@ -5,6 +5,16 @@
     "longitude": -76.0
   },
   "drop_percentage": 20,
+  "delay_profiles": [
+    {
+      "probability": 100,
+      "min": 0.5,
+      "max": 3.5
+    }
+  ],
+  "battery_idle_discharge": 3,
   "transition_duration_s": 100,
-  "event_type": "permanent"
+  "event_type": "transient",
+  "transient_event_duration_s": 0,
+  "transient_event_return_s": 10
 }
