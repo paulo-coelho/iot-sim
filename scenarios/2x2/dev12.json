@@ -1,6 +1,6 @@
 {
   "server_host": "127.0.0.1",
-  "server_port": 5684,
+  "server_port": 5002,
   "resource_path": [
     "device",
     "data"
@@ -17,17 +17,17 @@
   "delay_profiles": [
     {
       "probability": 70,
-      "min": 2.5,
-      "max": 4.5
+      "min": 0.1,
+      "max": 0.5
     },
     {
       "probability": 30,
-      "min": 3.5,
-      "max": 6.0
+      "min": 0.5,
+      "max": 1.0
     }
   ],
   "uuid": "a713542d-638e-4954-98a4-3acbfbc95a1f",
-  "battery_idle_discharge": 1,
-  "battery_transmit_discharge": 17,
-  "battery_charge": 3609
+  "battery_idle_discharge": 0.2,
+  "battery_transmit_discharge": 1,
+  "battery_charge": 89
 }

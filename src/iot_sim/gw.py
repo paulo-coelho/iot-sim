@@ -1,15 +1,20 @@
 import argparse
 import asyncio
+import csv
 import json
+import os
 import random
 import sys
+from datetime import datetime
+import time
+from typing import Any
 
 import aiocoap
 from aiocoap import Code
 from aiocoap import Context as CoAPContext
 
-from .mqtt import AsyncMQTTClient
 from .model import CoAPReply
+from .mqtt import AsyncMQTTClient
 
 
 async def send_coap_get(
@@ -35,13 +40,37 @@ async def send_coap_get(
         return None
 
 
+def log_device_data(
+    csv_filepath: str, data: dict[str, Any], write_header: bool = False
+) -> None:
+    os.makedirs(os.path.dirname(csv_filepath), exist_ok=True)
+    fieldnames = [
+        "timestamp",
+        "uri",
+        "uuid",
+        "longitude",
+        "latitude",
+        "temperature",
+        "battery",
+        "error",
+    ]
+    file_exists = os.path.isfile(csv_filepath)
+    with open(csv_filepath, mode="a", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if write_header or not file_exists:
+            writer.writeheader()
+        writer.writerow(data)
+
+
 async def periodic_request_and_publish(
     protocol: CoAPContext,
     mqtt_client: AsyncMQTTClient,
     uri: str,
     topic: str,
     interval_ms: int,
+    csv_filepath: str,
     initial_delay: float = 0.0,
+    write_header: bool = False,
 ) -> None:
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
@@ -52,6 +81,7 @@ async def periodic_request_and_publish(
         start_time = asyncio.get_event_loop().time()
         payload = await send_coap_get(protocol, uri, timeout=timeout)
 
+        error = 0
         if payload is not None:
             reply = CoAPReply.from_json(payload)
         else:
@@ -62,8 +92,27 @@ async def periodic_request_and_publish(
                 reply.timestamp = asyncio.get_event_loop().time()
                 reply.temperature = 0.0
                 reply.battery = 0.0
+                error = 1
 
         if reply is not None:
+            # Log to CSV
+            coordinate = getattr(reply, "coordinate", {})
+            longitude = coordinate.get("longitude", 0)
+            latitude = coordinate.get("latitude", 0)
+            log_data = {
+                "timestamp": reply.timestamp
+                if hasattr(reply, "timestamp")
+                else time.time(),
+                "uri": uri,
+                "uuid": getattr(reply, "uuid", ""),
+                "longitude": longitude,
+                "latitude": latitude,
+                "temperature": getattr(reply, "temperature", ""),
+                "battery": getattr(reply, "battery", ""),
+                "error": error,
+            }
+            log_device_data(csv_filepath, log_data, write_header)
+            write_header = False  # Only write header once
 
             async def publish_task():
                 try:
@@ -108,6 +157,10 @@ async def main() -> None:
     )
     args = parser.parse_args()
 
+    # Prepare logs directory and CSV filename
+    os.makedirs("logs", exist_ok=True)
+    csv_filename = f"logs/gw-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
+
     # Load device list
     try:
         with open(args.devices, "r") as f:
@@ -131,10 +184,12 @@ async def main() -> None:
                     uri,
                     args.topic,
                     args.interval,
+                    csv_filename,
                     random.uniform(0, args.interval / 1000),
+                    write_header=(i == 0),
                 )
             )
-            for uri in devices
+            for i, uri in enumerate(devices)
         ]
 
         try:
@@ -146,6 +201,8 @@ async def main() -> None:
 
 
 def run() -> None:
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

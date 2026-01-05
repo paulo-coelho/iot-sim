@@ -259,6 +259,8 @@ class AsyncIoTResource(resource.Resource):
         )
         await asyncio.sleep(self.current_event.transient_event_duration_s)
         # Transition back to previous config
+        # Coordinates are never transient
+        self.previous_event.coordinate = self.current_coordinate
         if self.previous_event:
             logger.info(
                 f"🔄 Returning to previous event over {self.current_event.transient_event_return_s} seconds..."

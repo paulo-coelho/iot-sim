@@ -1,6 +1,6 @@
 {
   "server_host": "127.0.0.1",
-  "server_port": 5685,
+  "server_port": 6001,
   "resource_path": [
     "device",
     "data"
@@ -32,7 +32,7 @@
     }
   ],
   "uuid": "93cb4328-e2ee-4e45-963e-92a9c3e6f951",
-  "battery_idle_discharge": 4,
-  "battery_transmit_discharge": 20,
-  "battery_charge": 3801
+  "battery_idle_discharge": 0.04,
+  "battery_transmit_discharge": 0.6,
+  "battery_charge": 99
 }

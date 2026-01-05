@@ -20,9 +20,9 @@ async def main():
     os.makedirs(logs_dir, exist_ok=True)
 
     if len(sys.argv) < 2:
-        print("🛑 ERROR: Please provide the configuration file as the first argument.")
+        print("🛑 Please provide the configuration JSON file as the first argument.")
         print("Usage: uv run iot-sim <configuration file>")
-        sys.exit(1)
+        return
 
     CONFIG_FILE: str = sys.argv[1]
     if not os.path.exists(CONFIG_FILE):
@@ -41,13 +41,6 @@ async def main():
     logging.config.dictConfig(log_config)
     global logger
     logger = logging.getLogger("iot-sim")
-
-    if len(sys.argv) < 2:
-        print(
-            "🛑 Please provide the path to the configuration JSON file as a command line argument."
-        )
-        print("Usage: python -m iot_sim /path/to/simulator_config.json")
-        return
 
     DELAY_PROFILES = config.delay_profiles
     total_probability: float = sum(p.get("probability", 0) for p in DELAY_PROFILES)
@@ -90,6 +83,8 @@ async def main():
 
 
 def run():
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
@@ -97,4 +92,3 @@ def run():
             logger.info("\n👋 Async CoAP Server Shutting Down...")
         else:
             print("\n👋 Async CoAP Server Shutting Down...")
-

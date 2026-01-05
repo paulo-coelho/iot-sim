@@ -162,6 +162,7 @@ function fitMapToBounds() {
 
 function processDeviceData(data) {
   const uuid = data.uuid;
+  const status = data.status;
   const lat = data.coordinate.latitude;
   const lon = data.coordinate.longitude;
 
@@ -172,7 +173,7 @@ function processDeviceData(data) {
   let displayStatusClass = "Normal";
   let shouldBlink = false;
 
-  if (data.status.startsWith("ERROR")) {
+  if (status.startsWith("ERROR")) {
     // Red: Error Status (Highest Priority)
     displayStatusClass = "Error";
     shouldBlink = true;
@@ -217,13 +218,14 @@ function processDeviceData(data) {
   } else {
     // Create new marker
     marker = L.marker([lat, lon], { icon: customIcon }).addTo(map);
-    marker.bindPopup(`
+    deviceMarkers[uuid] = marker;
+  }
+
+  marker.bindPopup(`
             <b>Device ID:</b> ${uuid}<br>
             <b>Status:</b> ${status}<br>
             <b>Lat/Lon:</b> ${lat}, ${lon}
         `);
-    deviceMarkers[uuid] = marker;
-  }
 
   // Conditional Auto-Centering
   const isAutoCenterEnabled =
