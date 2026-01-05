@@ -1,33 +1,33 @@
 {
-  "server_host": "127.0.0.1",
-  "server_port": 5020,
-  "resource_path": [
-    "device",
-    "data"
-  ],
-  "coordinate": {
-    "latitude": -18.8902,
-    "longitude": -48.3843
-  },
-  "temperature_range": [
-    18.0,
-    32.0
-  ],
-  "drop_percentage": 10,
-  "delay_profiles": [
-    {
-      "probability": 63,
-      "min": 0.11,
-      "max": 0.21
+    "server_host": "127.0.0.1",
+    "server_port": 5020,
+    "resource_path": [
+        "device",
+        "data"
+    ],
+    "coordinate": {
+        "latitude": -18.8902,
+        "longitude": -48.3843
     },
-    {
-      "probability": 37,
-      "min": 0.39,
-      "max": 1.8
-    }
-  ],
-  "uuid": "10028423-5448-40d5-bb4a-77c8368dfa20",
-  "battery_idle_discharge": 4,
-  "battery_transmit_discharge": 20,
-  "battery_charge": 3652
+    "temperature_range": [
+        18.0,
+        32.0
+    ],
+    "drop_percentage": 10,
+    "delay_profiles": [
+        {
+            "probability": 63,
+            "min": 0.11,
+            "max": 0.21
+        },
+        {
+            "probability": 37,
+            "min": 0.39,
+            "max": 1.8
+        }
+    ],
+    "uuid": "10028423-5448-40d5-bb4a-77c8368dfa20",
+    "battery_idle_discharge": 0.08245487868845523,
+    "battery_transmit_discharge": 0.5491197103979961,
+    "battery_charge": 42
 }

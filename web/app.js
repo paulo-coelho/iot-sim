@@ -60,7 +60,6 @@ function updateStatus(message) {
 window.connectToBroker = function () {
   const host = document.getElementById("broker-url").value;
   const port = parseInt(document.getElementById("broker-port").value);
-  const topic = document.getElementById("mqtt-topic").value; // READ TOPIC HERE
 
   // Generate a UNIQUE Client ID for every connection attempt
   const clientId = `web_client_${Math.random().toString(16).substr(2, 8)}`;
@@ -108,7 +107,7 @@ window.disconnectFromBroker = function () {
 };
 
 function onConnectSuccess(context) {
-  const topic = document.getElementById("mqtt-topic").value;
+  const topic = document.getElementById("mqtt-topic").value.trim();
   updateStatus("Connected!");
   document.getElementById("connect-btn").disabled = true;
   document.getElementById("disconnect-btn").disabled = false;
