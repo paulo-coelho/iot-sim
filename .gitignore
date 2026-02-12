@@ -14,3 +14,5 @@ logs/
 
 # macos files
 **.DS_Store
+
+TODO.*
