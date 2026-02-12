@@ -26,7 +26,7 @@ class AsyncIoTResource(resource.Resource):
         # Store the config object
         self.device_config: DeviceConfig = device_config
 
-        # Curret config
+        # Current config
         self.current_temp_min: float
         self.current_temp_max: float
         self.current_temp_min, self.current_temp_max = device_config.temperature_range
@@ -113,12 +113,37 @@ class AsyncIoTResource(resource.Resource):
         start_coordinate = self.current_coordinate
 
         # Target values
-        target_temp_min, target_temp_max = self.target_event.temperature_range
-        target_drop_percentage = self.target_event.drop_percentage
-        target_delay_profiles = self.target_event.delay_profiles
-        target_battery_transmit_discharge = self.target_event.battery_transmit_discharge
-        target_battery_idle_discharge = self.target_event.battery_idle_discharge
-        target_coordinate = self.target_event.coordinate
+
+        target_temp_min, target_temp_max = (
+            self.target_event.temperature_range
+            if self.target_event.temperature_range is not None
+            else [self.current_temp_min, self.current_temp_max]
+        )
+        target_drop_percentage = (
+            self.target_event.drop_percentage
+            if self.target_event.drop_percentage is not None
+            else self.current_drop_percentage
+        )
+        target_delay_profiles = (
+            self.target_event.delay_profiles
+            if len(self.target_event.delay_profiles) > 0
+            else self.current_event.delay_profiles
+        )
+        target_battery_transmit_discharge = (
+            self.target_event.battery_transmit_discharge
+            if self.target_event.battery_transmit_discharge is not None
+            else self.current_battery_transmit_discharge
+        )
+        target_battery_idle_discharge = (
+            self.target_event.battery_idle_discharge
+            if self.target_event.battery_idle_discharge is not None
+            else self.current_battery_idle_discharge
+        )
+        target_coordinate = (
+            self.target_event.coordinate
+            if len(self.target_event.coordinate) > 0
+            else self.current_coordinate
+        )
 
         start_time = time.time()
 

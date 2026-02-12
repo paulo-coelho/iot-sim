@@ -1,0 +1,98 @@
+[
+  {
+    "time_ms": 1000,
+    "device": "coap://127.0.0.1:5001/device/data",
+    "event": {
+      "event_name": "Rendezvous",
+      "coordinate": {
+        "latitude": 40.76,
+        "longitude": -73.01
+      },
+      "drop_percentage": 20,
+      "delay_profiles": [
+        {
+          "probability": 100,
+          "min": 0.5,
+          "max": 3.5
+        }
+      ],
+      "battery_idle_discharge": 3,
+      "transition_duration_s": 20,
+      "event_type": "transient",
+      "transient_event_duration_s": 0,
+      "transient_event_return_s": 10
+    }
+  },
+  {
+    "time_ms": 7000,
+    "device": "coap://127.0.0.1:5002/device/data",
+    "event": {
+      "event_name": "Rendezvous",
+      "coordinate": {
+        "latitude": 40.75,
+        "longitude": -73.0
+      },
+      "drop_percentage": 20,
+      "delay_profiles": [
+        {
+          "probability": 100,
+          "min": 0.5,
+          "max": 3.5
+        }
+      ],
+      "battery_idle_discharge": 3,
+      "transition_duration_s": 30,
+      "event_type": "transient",
+      "transient_event_duration_s": 0,
+      "transient_event_return_s": 10
+    }
+  },
+  {
+    "time_ms": 11000,
+    "device": "coap://127.0.0.1:6001/device/data",
+    "event": {
+      "event_name": "Rendezvous",
+      "coordinate": {
+        "latitude": 40.75,
+        "longitude": -73.02
+      },
+      "drop_percentage": 20,
+      "delay_profiles": [
+        {
+          "probability": 100,
+          "min": 0.5,
+          "max": 3.5
+        }
+      ],
+      "battery_idle_discharge": 3,
+      "transition_duration_s": 20,
+      "event_type": "transient",
+      "transient_event_duration_s": 0,
+      "transient_event_return_s": 10
+    }
+  },
+  {
+    "time_ms": 15000,
+    "device": "coap://127.0.0.1:6002/device/data",
+    "event": {
+      "event_name": "Rendezvous",
+      "coordinate": {
+        "latitude": 40.76,
+        "longitude": -72.99
+      },
+      "drop_percentage": 20,
+      "delay_profiles": [
+        {
+          "probability": 100,
+          "min": 0.5,
+          "max": 3.5
+        }
+      ],
+      "battery_idle_discharge": 3,
+      "transition_duration_s": 15,
+      "event_type": "transient",
+      "transient_event_duration_s": 0,
+      "transient_event_return_s": 10
+    }
+  }
+]

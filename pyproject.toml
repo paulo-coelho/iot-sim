@@ -20,6 +20,7 @@ dependencies = [
 iot-sim = "iot_sim:run"
 iot-client = "iot_sim.client:run"
 iot-gw = "iot_sim.gw:run"
+ev-man = "iot_sim.evman:run"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

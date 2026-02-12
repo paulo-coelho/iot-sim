@@ -41,12 +41,12 @@ class DeviceConfig(BaseModel):
 
 
 class EventConfig(BaseModel):
-    event_name: str
+    event_name: str = "Event"
     event_type: str = "permanent"
-    temperature_range: tuple[float, float]
-    battery_transmit_discharge: float
-    battery_idle_discharge: float
-    drop_percentage: float
+    temperature_range: tuple[float, float] | None = None
+    battery_transmit_discharge: float | None = None
+    battery_idle_discharge: float | None = None
+    drop_percentage: float | None = None
     delay_profiles: list[dict[str, int | float]]
     coordinate: dict[str, float] = {}
     transition_duration_s: float = 0
