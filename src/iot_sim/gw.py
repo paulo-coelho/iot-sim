@@ -5,8 +5,8 @@ import json
 import os
 import random
 import sys
-from datetime import datetime
 import time
+from datetime import datetime
 from typing import Any
 
 import aiocoap
@@ -15,6 +15,50 @@ from aiocoap import Context as CoAPContext
 
 from .model import CoAPReply
 from .mqtt import AsyncMQTTClient
+
+CSV_FLUSH_INTERVAL = 30  # seconds
+
+
+class AsyncCSVLogger:
+    def __init__(
+        self, csv_filepath: str, fieldnames: list[str], write_header: bool = False
+    ):
+        self.csv_filepath = csv_filepath
+        self.fieldnames = fieldnames
+        self.write_header = write_header
+        self.queue = asyncio.Queue()
+        self.csvfile = None
+        self.writer = None
+        self.header_written = False
+        os.makedirs(os.path.dirname(csv_filepath), exist_ok=True)
+
+    async def start(self):
+        self.csvfile = open(self.csv_filepath, mode="a", newline="")
+        self.writer = csv.DictWriter(self.csvfile, fieldnames=self.fieldnames)
+        if self.write_header or not os.path.isfile(self.csv_filepath):
+            self.writer.writeheader()
+            self.header_written = True
+        while True:
+            try:
+                await self._flush_periodically()
+            except asyncio.CancelledError:
+                await self._flush_all()
+                self.csvfile.close()
+                break
+
+    async def _flush_periodically(self):
+        while True:
+            await asyncio.sleep(CSV_FLUSH_INTERVAL)
+            await self._flush_all()
+
+    async def _flush_all(self):
+        while not self.queue.empty():
+            data = await self.queue.get()
+            self.writer.writerow(data)
+            self.queue.task_done()
+
+    async def log(self, data: dict[str, Any]):
+        await self.queue.put(data)
 
 
 async def send_coap_get(
@@ -40,49 +84,31 @@ async def send_coap_get(
         return None
 
 
-def log_device_data(
-    csv_filepath: str, data: dict[str, Any], write_header: bool = False
-) -> None:
-    os.makedirs(os.path.dirname(csv_filepath), exist_ok=True)
-    fieldnames = [
-        "timestamp",
-        "uri",
-        "uuid",
-        "longitude",
-        "latitude",
-        "temperature",
-        "battery",
-        "error",
-    ]
-    file_exists = os.path.isfile(csv_filepath)
-    with open(csv_filepath, mode="a", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        if write_header or not file_exists:
-            writer.writeheader()
-        writer.writerow(data)
-
-
 async def periodic_request_and_publish(
     protocol: CoAPContext,
     mqtt_client: AsyncMQTTClient,
     uri: str,
     topic: str,
     interval_ms: int,
-    csv_filepath: str,
+    csv_logger: AsyncCSVLogger,
     initial_delay: float = 0.0,
-    write_header: bool = False,
 ) -> None:
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
     timeout = max((interval_ms / 1000) * 0.9, 0.5)
     reply: CoAPReply | None = None
+    message_id = 1
 
     while True:
         start_time = asyncio.get_event_loop().time()
+        sent_time = time.time_ns()
+        receipt_time = -1
+        error = 0
+
         payload = await send_coap_get(protocol, uri, timeout=timeout)
 
-        error = 0
         if payload is not None:
+            receipt_time = time.time_ns()
             reply = CoAPReply.from_json(payload)
         else:
             if reply is not None:
@@ -100,19 +126,22 @@ async def periodic_request_and_publish(
             longitude = coordinate.get("longitude", 0)
             latitude = coordinate.get("latitude", 0)
             log_data = {
+                "uuid": getattr(reply, "uuid", ""),
+                "message_id": message_id,
+                "sent_time": sent_time,
+                "receipt_time": receipt_time,
                 "timestamp": reply.timestamp
                 if hasattr(reply, "timestamp")
                 else time.time(),
                 "uri": uri,
-                "uuid": getattr(reply, "uuid", ""),
                 "longitude": longitude,
                 "latitude": latitude,
                 "temperature": getattr(reply, "temperature", ""),
                 "battery": getattr(reply, "battery", ""),
                 "error": error,
             }
-            log_device_data(csv_filepath, log_data, write_header)
-            write_header = False  # Only write header once
+            await csv_logger.log(log_data)
+            message_id += 1
 
             async def publish_task():
                 try:
@@ -161,6 +190,23 @@ async def main() -> None:
     os.makedirs("logs", exist_ok=True)
     csv_filename = f"logs/gw-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
 
+    # CSV logger setup
+    fieldnames = [
+        "uuid",
+        "message_id",
+        "sent_time",
+        "receipt_time",
+        "timestamp",
+        "uri",
+        "longitude",
+        "latitude",
+        "temperature",
+        "battery",
+        "error",
+    ]
+    csv_logger = AsyncCSVLogger(csv_filename, fieldnames, write_header=True)
+    csv_logger_task = asyncio.create_task(csv_logger.start())
+
     # Load device list
     try:
         with open(args.devices, "r") as f:
@@ -184,12 +230,11 @@ async def main() -> None:
                     uri,
                     args.topic,
                     args.interval,
-                    csv_filename,
+                    csv_logger,
                     random.uniform(0, args.interval / 1000),
-                    write_header=(i == 0),
                 )
             )
-            for i, uri in enumerate(devices)
+            for uri in devices
         ]
 
         try:
@@ -197,6 +242,8 @@ async def main() -> None:
         except asyncio.CancelledError:
             print("[INFO] Cancelled by user.")
         finally:
+            csv_logger_task.cancel()
+            await csv_logger_task
             await protocol.shutdown()
 
 
