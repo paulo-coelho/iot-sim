@@ -20,6 +20,10 @@ CSV_FLUSH_INTERVAL = 30  # seconds
 
 
 class AsyncCSVLogger:
+    """
+    Asynchronous CSV logger for logging data from IoT devices.
+    """
+
     def __init__(
         self, csv_filepath: str, fieldnames: list[str], write_header: bool = False
     ):
@@ -33,6 +37,9 @@ class AsyncCSVLogger:
         os.makedirs(os.path.dirname(csv_filepath), exist_ok=True)
 
     async def start(self):
+        """
+        Start the CSV logger. Periodically flushes the queue to disk.
+        """
         self.csvfile = open(self.csv_filepath, mode="a", newline="")
         self.writer = csv.DictWriter(self.csvfile, fieldnames=self.fieldnames)
         if self.write_header or not os.path.isfile(self.csv_filepath):
@@ -47,23 +54,35 @@ class AsyncCSVLogger:
                 break
 
     async def _flush_periodically(self):
+        """
+        Flush the queue to disk at regular intervals.
+        """
         while True:
             await asyncio.sleep(CSV_FLUSH_INTERVAL)
             await self._flush_all()
 
     async def _flush_all(self):
+        """
+        Flush all items in the queue to disk.
+        """
         while not self.queue.empty():
             data = await self.queue.get()
             self.writer.writerow(data)
             self.queue.task_done()
 
     async def log(self, data: dict[str, Any]):
+        """
+        Add a log entry to the queue.
+        """
         await self.queue.put(data)
 
 
 async def send_coap_get(
     protocol: CoAPContext, uri: str, timeout: float | None = None
 ) -> str | None:
+    """
+    Send a CoAP GET request and return the response payload as a string.
+    """
     request = aiocoap.Message(code=Code.GET, uri=uri)
     try:
         if timeout is not None:
@@ -93,6 +112,9 @@ async def periodic_request_and_publish(
     csv_logger: AsyncCSVLogger,
     initial_delay: float = 0.0,
 ) -> None:
+    """
+    Periodically send CoAP GET requests, log results, and publish to MQTT.
+    """
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
     timeout = max((interval_ms / 1000) * 0.9, 0.5)
@@ -100,7 +122,7 @@ async def periodic_request_and_publish(
     message_id = 1
 
     while True:
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         sent_time = time.time_ns()
         receipt_time = -1
         error = 0
@@ -121,7 +143,6 @@ async def periodic_request_and_publish(
                 error = 1
 
         if reply is not None:
-            # Log to CSV
             coordinate = getattr(reply, "coordinate", {})
             longitude = coordinate.get("longitude", 0)
             latitude = coordinate.get("latitude", 0)
@@ -130,9 +151,7 @@ async def periodic_request_and_publish(
                 "message_id": message_id,
                 "sent_time": sent_time,
                 "receipt_time": receipt_time,
-                "timestamp": reply.timestamp
-                if hasattr(reply, "timestamp")
-                else time.time(),
+                "timestamp": getattr(reply, "timestamp", time.time()),
                 "uri": uri,
                 "longitude": longitude,
                 "latitude": latitude,
@@ -150,13 +169,16 @@ async def periodic_request_and_publish(
                     print(f"[MQTT] Error publishing payload from {uri}: {e}")
 
             asyncio.create_task(publish_task())
-        elapsed = asyncio.get_event_loop().time() - start_time
+        elapsed = asyncio.get_running_loop().time() - start_time
         sleep_time = (interval_ms / 1000) - elapsed
         if sleep_time > 0:
             await asyncio.sleep(sleep_time)
 
 
 async def main() -> None:
+    """
+    Main entry point for the IoT Gateway.
+    """
     parser = argparse.ArgumentParser(
         description="IoT Gateway: Periodic CoAP to MQTT bridge"
     )
@@ -248,6 +270,9 @@ async def main() -> None:
 
 
 def run() -> None:
+    """
+    Run the IoT Gateway application.
+    """
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     try:
