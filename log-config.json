@@ -27,7 +27,7 @@
         "file",
         "console"
       ],
-      "level": "DEBUG",
+      "level": "INFO",
       "propagate": false
     }
   },

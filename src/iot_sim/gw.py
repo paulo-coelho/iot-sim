@@ -41,7 +41,9 @@ class AsyncCSVLogger:
         Start the CSV logger. Periodically flushes the queue to disk.
         """
         self.csvfile = open(self.csv_filepath, mode="a", newline="")
-        self.writer = csv.DictWriter(self.csvfile, fieldnames=self.fieldnames)
+        self.writer = csv.DictWriter(
+            self.csvfile, fieldnames=self.fieldnames, delimiter=";"
+        )
         if self.write_header or not os.path.isfile(self.csv_filepath):
             self.writer.writeheader()
             self.header_written = True
