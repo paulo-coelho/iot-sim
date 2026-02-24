@@ -18,7 +18,7 @@ if ! [[ "$REGION" =~ ^[0-9]+$ ]] || ! [[ "$DEVICE" =~ ^[0-9]+$ ]]; then
 fi
 
 REGION_ID=$(printf "%02d" "$REGION")
-DEVICE_ID=$(printf "%03d" "$DEVICE")
+DEVICE_ID=$(printf "%04d" "$DEVICE")
 
 CONFIG_FILE="$FOLDER/device-$REGION_ID-$DEVICE_ID.json"
 

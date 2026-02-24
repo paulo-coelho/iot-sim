@@ -97,6 +97,16 @@ It allows users to simulate data generation, device communication, and interacti
   uv run iot-gw -d scenarios/devices-02-50.json -i 5000 -t "/gw/002/"
   ```
 
+## IoT Schedule Manager
+
+- To run more complex scenarios that combine multiple events for one or more devices we provide a schedule manager that receives a JSON file a list of `<device, time, event>` tuples and apply each time chronologically.
+
+- An example is provided in the folder `scenarios`, you can run with `uv`:
+
+  ```bash
+  uv run ev-man scenarios/schedule-rendezvous-2x2.json
+  ```
+
 ## IoT MQTT monitor
 
 - In folder `web` you will find a HTML page that can be used to monitor devices live information as they are published by the IoT gateways.
@@ -126,3 +136,5 @@ The following scripts are available in the `scripts/` folder (run from the proje
   # Usage: scripts/run-iot-range.sh <folder> <region> <device_id_start> <device_id_end>
   ./scripts/run-iot-range.sh scenarios/2x50 1 1 50 # region 1, devices from 1 to 50
   ```
+
+  - The folder also contains additional scripts to automate the generation of multiple config files.

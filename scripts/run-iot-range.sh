@@ -30,7 +30,7 @@ PIDS=()
 trap 'echo "Killing child processes..."; kill "${PIDS[@]}" 2>/dev/null; exit 130' SIGINT
 
 for (( i=START; i<=END; i++ )); do
-  DEVICE_ID=$(printf "%03d" "$i")
+  DEVICE_ID=$(printf "%04d" "$i")
   CONFIG_FILE="$FOLDER/device-$REGION_ID-$DEVICE_ID.json"
   if [ ! -f "$CONFIG_FILE" ]; then
     echo "Warning: Config file '$CONFIG_FILE' does not exist. Skipping."
