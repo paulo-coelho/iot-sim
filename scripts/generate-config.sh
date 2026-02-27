@@ -68,6 +68,12 @@ while getopts "h:p:a:o:u:s:e:d:i:t:c:f:-:" opt; do
   esac
 done
 
+# Generate UUID if not provided
+if [[ -z "$UUID" ]]; then
+  UUID=$(uuidgen)
+fi
+
+
 
 # Check if battery charge is a number and between 0-100 (if provided)
 if [[ -n "$BATT_CHG" ]]; then
