@@ -1,3 +1,5 @@
+import asyncio
+
 from aiomqtt import Client, MqttError
 
 from typing import Any
@@ -36,7 +38,10 @@ class AsyncMQTTClient:
                 "MQTT client is not connected. Use 'async with AsyncMQTTClient(...) as client:'"
             )
         try:
-            await self._client.publish(topic, payload)
+            # await self._client.publish(topic, payload)
+            await asyncio.wait_for(self._client.publish(topic, payload), timeout=2.0)
+        except asyncio.TimeoutError:
+            print(f"MQTT publish timeout for topic {topic}")
         except MqttError as e:
             print(f"MQTT publish error: {e}")
             raise

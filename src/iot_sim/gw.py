@@ -3,7 +3,6 @@ import asyncio
 import csv
 import json
 import os
-import random
 import sys
 import time
 from datetime import datetime
@@ -17,6 +16,8 @@ from .model import CoAPReply
 from .mqtt import AsyncMQTTClient
 
 CSV_FLUSH_INTERVAL = 30  # seconds
+
+DEVICE_TIMEOUT = 15  # seconds
 
 
 class AsyncCSVLogger:
@@ -33,44 +34,40 @@ class AsyncCSVLogger:
         self.queue = asyncio.Queue()
         self.csvfile = None
         self.writer = None
-        self.header_written = False
-        os.makedirs(os.path.dirname(csv_filepath), exist_ok=True)
+        self._flush_task = None
 
     async def start(self):
         """
         Start the CSV logger. Periodically flushes the queue to disk.
         """
+        os.makedirs(os.path.dirname(self.csv_filepath), exist_ok=True)
         self.csvfile = open(self.csv_filepath, mode="a", newline="")
         self.writer = csv.DictWriter(
             self.csvfile, fieldnames=self.fieldnames, delimiter=";"
         )
         if self.write_header or not os.path.isfile(self.csv_filepath):
             self.writer.writeheader()
-            self.header_written = True
-        while True:
-            try:
-                await self._flush_periodically()
-            except asyncio.CancelledError:
-                await self._flush_all()
-                self.csvfile.close()
-                break
 
-    async def _flush_periodically(self):
-        """
-        Flush the queue to disk at regular intervals.
-        """
-        while True:
-            await asyncio.sleep(CSV_FLUSH_INTERVAL)
+        self._flush_task = asyncio.create_task(self._periodic_flush_loop())
+
+    async def _periodic_flush_loop(self):
+        try:
+            while True:
+                await asyncio.sleep(CSV_FLUSH_INTERVAL)
+                await self._flush_all()
+        except asyncio.CancelledError:
             await self._flush_all()
+            if self.csvfile:
+                self.csvfile.close()
 
     async def _flush_all(self):
-        """
-        Flush all items in the queue to disk.
-        """
         while not self.queue.empty():
             data = await self.queue.get()
-            self.writer.writerow(data)
+            if self.writer:
+                self.writer.writerow(data)
             self.queue.task_done()
+        if self.csvfile:
+            self.csvfile.flush()
 
     async def log(self, data: dict[str, Any]):
         """
@@ -78,27 +75,34 @@ class AsyncCSVLogger:
         """
         await self.queue.put(data)
 
+    async def stop(self):
+        """
+        Add a log entry to the queue.
+        """
+        if self._flush_task:
+            self._flush_task.cancel()
+            await self._flush_task
+
 
 async def send_coap_get(
-    protocol: CoAPContext, uri: str, timeout: float | None = None
+    protocol: CoAPContext, uri: str, semaphore: asyncio.Semaphore
 ) -> str | None:
     """
     Send a CoAP GET request and return the response payload as a string.
     """
     request = aiocoap.Message(code=Code.GET, uri=uri)
+
     try:
-        if timeout is not None:
+        async with semaphore:
             response = await asyncio.wait_for(
-                protocol.request(request).response, timeout=timeout
+                protocol.request(request).response, timeout=DEVICE_TIMEOUT
             )
-        else:
-            response = await protocol.request(request).response
         if response.code == Code.NOT_FOUND:
             print(f"[CoAP] 404 Not Found for {uri}")
             return None
         return response.payload.decode("utf-8")
     except asyncio.TimeoutError:
-        print(f"[CoAP] Timeout requesting {uri} (>{timeout:.2f}s)")
+        print(f"[CoAP] Timeout requesting {uri} (>{DEVICE_TIMEOUT:.2f}s)")
         return None
     except Exception as e:
         print(f"[CoAP] Error requesting {uri}: {e}")
@@ -112,6 +116,7 @@ async def periodic_request_and_publish(
     topic: str,
     interval_ms: int,
     csv_logger: AsyncCSVLogger,
+    semaphore: asyncio.Semaphore,
     initial_delay: float = 0.0,
 ) -> None:
     """
@@ -119,32 +124,38 @@ async def periodic_request_and_publish(
     """
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
-    timeout = max((interval_ms / 1000) * 0.9, 0.5)
+
     reply: CoAPReply | None = None
+    device_lock = asyncio.Lock()
     message_id = 1
 
-    while True:
-        start_time = asyncio.get_running_loop().time()
+    async def perform_request(message_id: int, reply: CoAPReply | None):
         sent_time = time.time_ns()
         receipt_time = -1
         error = 0
+        payload = None
 
-        payload = await send_coap_get(protocol, uri, timeout=timeout)
-
-        if payload is not None:
-            receipt_time = time.time_ns()
-            reply = CoAPReply.from_json(payload)
+        if device_lock.locked():
+            error = 2  # Internal code for 'Skipped/Busy'
+            print(f"[Warn] {uri} is lagging. Skipping current interval.")
         else:
-            if reply is not None:
-                reply.status = (
-                    "ERROR: timeout or empty payload. Battery and temperature set to 0"
-                )
-                reply.timestamp = asyncio.get_event_loop().time()
-                reply.temperature = 0.0
-                reply.battery = 0.0
+            async with device_lock:
+                payload = await send_coap_get(protocol, uri, semaphore)
+
+            if payload is not None:
+                receipt_time = time.time_ns()
+                reply = CoAPReply.from_json(payload)
+            else:
                 error = 1
 
         if reply is not None:
+            if error > 0:
+                reply.status = (
+                    "ERROR: Battery and temperature set to 0. See error code."
+                )
+                reply.temperature = 0.0
+                reply.battery = 0.0
+
             coordinate = getattr(reply, "coordinate", {})
             longitude = coordinate.get("longitude", 0)
             latitude = coordinate.get("latitude", 0)
@@ -161,20 +172,15 @@ async def periodic_request_and_publish(
                 "battery": getattr(reply, "battery", ""),
                 "error": error,
             }
+
             await csv_logger.log(log_data)
-            message_id += 1
+            if mqtt_client:
+                asyncio.create_task(mqtt_client.publish(topic, reply.model_dump_json()))
 
-            async def publish_task():
-                try:
-                    await mqtt_client.publish(topic, reply.model_dump_json())
-                except Exception as e:
-                    print(f"[MQTT] Error publishing payload from {uri}: {e}")
-
-            asyncio.create_task(publish_task())
-        elapsed = asyncio.get_running_loop().time() - start_time
-        sleep_time = (interval_ms / 1000) - elapsed
-        if sleep_time > 0:
-            await asyncio.sleep(sleep_time)
+    while True:
+        asyncio.create_task(perform_request(message_id, reply))
+        message_id += 1
+        await asyncio.sleep(interval_ms / 1000)
 
 
 async def main() -> None:
@@ -229,7 +235,7 @@ async def main() -> None:
         "error",
     ]
     csv_logger = AsyncCSVLogger(csv_filename, fieldnames, write_header=True)
-    csv_logger_task = asyncio.create_task(csv_logger.start())
+    await csv_logger.start()
 
     # Load device list
     try:
@@ -246,6 +252,11 @@ async def main() -> None:
     async with AsyncMQTTClient(args.broker) as mqtt_client:
         protocol: CoAPContext = await CoAPContext.create_client_context()
 
+        # Limit concurrent network IO to 100
+        net_semaphore = asyncio.Semaphore(100)
+
+        step = (args.interval / 1000) / len(devices) if devices else 0
+
         tasks: list[asyncio.Task[None]] = [
             asyncio.create_task(
                 periodic_request_and_publish(
@@ -255,19 +266,20 @@ async def main() -> None:
                     args.topic,
                     args.interval,
                     csv_logger,
-                    random.uniform(0, args.interval / 1000),
+                    net_semaphore,
+                    step * i,
                 )
             )
-            for uri in devices
+            for i, uri in enumerate(devices)
         ]
 
         try:
             await asyncio.gather(*tasks)
         except asyncio.CancelledError:
             print("[INFO] Cancelled by user.")
+            pass
         finally:
-            csv_logger_task.cancel()
-            await csv_logger_task
+            await csv_logger.stop()
             await protocol.shutdown()
 
 
