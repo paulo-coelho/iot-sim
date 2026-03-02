@@ -36,7 +36,9 @@ for (( i=START; i<=END; i++ )); do
     echo "Warning: Config file '$CONFIG_FILE' does not exist. Skipping."
     continue
   fi
-  uv run iot-sim "$CONFIG_FILE" &
+  uv run iot-sim "$CONFIG_FILE" > /dev/null 2>&1 &
   PIDS+=($!)
+  
+  if (( i % 10 == 0 )); then sleep 0.05; fi
 done
 wait
