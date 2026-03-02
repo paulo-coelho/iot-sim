@@ -17,7 +17,12 @@ from .mqtt import AsyncMQTTClient
 
 CSV_FLUSH_INTERVAL = 30  # seconds
 
+MQTT_WORKER_COUNT = 10  # Number of concurrent MQTT publish workers
+NET_SEMAPHORE_LIMIT = 1000  # Max concurrent CoAP requests
+
+
 DEVICE_TIMEOUT = 15  # seconds
+
 
 
 class AsyncCSVLogger:
@@ -112,6 +117,7 @@ async def send_coap_get(
 async def periodic_request_and_publish(
     protocol: CoAPContext,
     mqtt_client: AsyncMQTTClient,
+    mqtt_publish_queue: asyncio.Queue,
     uri: str,
     topic: str,
     interval_ms: int,
@@ -120,7 +126,7 @@ async def periodic_request_and_publish(
     initial_delay: float = 0.0,
 ) -> None:
     """
-    Periodically send CoAP GET requests, log results, and publish to MQTT.
+    Periodically send CoAP GET requests, log results, and enqueue MQTT publish requests.
     """
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
@@ -129,7 +135,8 @@ async def periodic_request_and_publish(
     device_lock = asyncio.Lock()
     message_id = 1
 
-    async def perform_request(message_id: int, reply: CoAPReply | None):
+    while True:
+        loop_start = time.monotonic()
         sent_time = time.time_ns()
         receipt_time = -1
         error = 0
@@ -175,13 +182,28 @@ async def periodic_request_and_publish(
 
             await csv_logger.log(log_data)
             if mqtt_client:
-                asyncio.create_task(mqtt_client.publish(topic, reply.model_dump_json()))
+                await mqtt_publish_queue.put((topic, reply.model_dump_json()))
 
-    while True:
-        asyncio.create_task(perform_request(message_id, reply))
         message_id += 1
-        await asyncio.sleep(interval_ms / 1000)
+        elapsed = time.monotonic() - loop_start
+        sleep_time = max(0, interval_ms / 1000 - elapsed)
+        await asyncio.sleep(sleep_time)
 
+
+
+
+async def mqtt_publish_worker(mqtt_client: AsyncMQTTClient, mqtt_publish_queue: asyncio.Queue):
+    while True:
+        item = await mqtt_publish_queue.get()
+        if item is None:
+            mqtt_publish_queue.task_done()
+            break
+        topic, payload = item
+        try:
+            await mqtt_client.publish(topic, payload)
+        except Exception as e:
+            print(f"[MQTT Worker] Failed to publish: {e}")
+        mqtt_publish_queue.task_done()
 
 async def main() -> None:
     """
@@ -252,8 +274,16 @@ async def main() -> None:
     async with AsyncMQTTClient(args.broker) as mqtt_client:
         protocol: CoAPContext = await CoAPContext.create_client_context()
 
-        # Limit concurrent network IO to 100
-        net_semaphore = asyncio.Semaphore(100)
+        # Limit concurrent network IO
+        net_semaphore = asyncio.Semaphore(NET_SEMAPHORE_LIMIT)
+
+
+        # MQTT publish queue and workers
+        mqtt_publish_queue = asyncio.Queue()
+        mqtt_workers = [
+            asyncio.create_task(mqtt_publish_worker(mqtt_client, mqtt_publish_queue))
+            for _ in range(MQTT_WORKER_COUNT)
+        ]
 
         step = (args.interval / 1000) / len(devices) if devices else 0
 
@@ -262,6 +292,7 @@ async def main() -> None:
                 periodic_request_and_publish(
                     protocol,
                     mqtt_client,
+                    mqtt_publish_queue,
                     uri,
                     args.topic,
                     args.interval,
@@ -281,6 +312,11 @@ async def main() -> None:
         finally:
             await csv_logger.stop()
             await protocol.shutdown()
+            # Signal MQTT workers to exit
+            for _ in range(MQTT_WORKER_COUNT):
+                await mqtt_publish_queue.put(None)
+            await asyncio.gather(*mqtt_workers)
+
 
 
 def run() -> None:
