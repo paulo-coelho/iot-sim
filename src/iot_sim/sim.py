@@ -58,7 +58,7 @@ class AsyncIoTResource(resource.Resource):
         """Background task to drain battery by idle discharge every minute."""
         while self.current_battery_charge > 0:
             await asyncio.sleep(60)
-            self.current_battery_charge -= self.device_config.battery_idle_discharge
+            self.current_battery_charge -= self.current_battery_idle_discharge
             if self.current_battery_charge <= 0:
                 self.current_battery_charge = 0
                 self.discharged = True
