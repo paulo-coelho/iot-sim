@@ -6,7 +6,7 @@ import time
 from typing import Any
 
 from aiocoap import Code, ContentFormat, Message, resource
-from aiocoap.error import NotFound
+from aiocoap.error import ServiceUnavailable
 
 from .model import DeviceConfig, EventConfig, CoAPReply
 
@@ -227,7 +227,7 @@ class AsyncIoTResource(resource.Resource):
         """Handles POST request to trigger a disaster behavior change."""
         # Error if battery is discharged
         if self.discharged:
-            raise NotFound("Battery discharged. Device cannot process requests.")
+            raise ServiceUnavailable("Battery fully discharged.")
 
         self._discharge_battery(self.current_battery_transmit_discharge)
 
@@ -300,7 +300,7 @@ class AsyncIoTResource(resource.Resource):
         """Asynchronously handles an incoming GET request."""
         # Error if battery is discharged
         if self.discharged:
-            raise NotFound("Battery discharged. Device cannot process requests.")
+            raise ServiceUnavailable("Battery fully discharged.")
 
         # Drop Simulation
         if random.random() * 100 < self.current_drop_percentage:
@@ -308,7 +308,7 @@ class AsyncIoTResource(resource.Resource):
                 f"🚨 Dropping packet (Current Rate: {self.current_drop_percentage:.1f}%)"
             )
             await asyncio.sleep(20)
-            raise NotFound("Simulated drop leads to client timeout/failure.")
+            raise asyncio.CancelledError("Simulated drop")
 
         # Battery discharge on each request
         self._discharge_battery(self.current_battery_transmit_discharge)

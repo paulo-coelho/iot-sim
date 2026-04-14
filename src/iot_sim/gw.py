@@ -103,6 +103,9 @@ async def send_coap_get(
         if response.code == Code.NOT_FOUND:
             print(f"[CoAP] 404 Not Found for {uri}")
             return None
+        if response.code == Code.SERVICE_UNAVAILABLE:
+            print(f"[CoAP] 503 Service Unavailable (Battery) for {uri}")
+            return None
         return response.payload.decode("utf-8")
     except asyncio.TimeoutError:
         print(f"[CoAP] Timeout requesting {uri} (>{DEVICE_TIMEOUT:.2f}s)")
