@@ -17,6 +17,8 @@ LON=""
 UUID=""
 TEMP_MIN=""
 TEMP_MAX=""
+PRESS_MIN=""
+PRESS_MAX=""
 DROP=""
 BATT_IDLE=""
 BATT_TX=""
@@ -35,6 +37,8 @@ usage() {
   echo "  -u UUID     UUID string"
   echo "  -s MIN      Min temperature"
   echo "  -e MAX      Max temperature"
+  echo "  -m MIN      Min pressure"
+  echo "  -x MAX      Max pressure"
   echo "  -d DROP     Drop percentage"
   echo "  -i IDLE     Battery idle discharge"
   echo "  -t TX       Battery transmit discharge"
@@ -45,7 +49,7 @@ usage() {
 }
 
 # Parse flags
-while getopts "h:p:a:o:u:s:e:d:i:t:c:f:-:" opt; do
+while getopts "h:p:a:o:u:s:e:m:x:d:i:t:c:f:-:" opt; do
   case $opt in
     -)
       case "${OPTARG}" in
@@ -59,6 +63,8 @@ while getopts "h:p:a:o:u:s:e:d:i:t:c:f:-:" opt; do
     u) UUID=$OPTARG ;;
     s) TEMP_MIN=$OPTARG ;;
     e) TEMP_MAX=$OPTARG ;;
+    m) PRESS_MIN=$OPTARG ;;
+    x) PRESS_MAX=$OPTARG ;;
     d) DROP=$OPTARG ;;
     i) BATT_IDLE=$OPTARG ;;
     t) BATT_TX=$OPTARG ;;
@@ -108,6 +114,8 @@ JQ_FILTER='.'
 [[ -n "$UUID" ]] && JQ_FILTER+=" | .uuid=\"$UUID\""
 [[ -n "$TEMP_MIN" ]] && JQ_FILTER+=" | .temperature_range[0]=($TEMP_MIN|tonumber)"
 [[ -n "$TEMP_MAX" ]] && JQ_FILTER+=" | .temperature_range[1]=($TEMP_MAX|tonumber)"
+[[ -n "$PRESS_MIN" ]] && JQ_FILTER+=" | .pressure_range[0]=($PRESS_MIN|tonumber)"
+[[ -n "$PRESS_MAX" ]] && JQ_FILTER+=" | .pressure_range[1]=($PRESS_MAX|tonumber)"
 [[ -n "$DROP" ]] && JQ_FILTER+=" | .drop_percentage=($DROP|tonumber)"
 [[ -n "$BATT_IDLE" ]] && JQ_FILTER+=" | .battery_idle_discharge=($BATT_IDLE|tonumber)"
 [[ -n "$BATT_TX" ]] && JQ_FILTER+=" | .battery_transmit_discharge=($BATT_TX|tonumber)"

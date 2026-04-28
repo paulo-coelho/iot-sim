@@ -15,5 +15,9 @@
     }
   ],
   "transition_duration_s": 120,
-  "event_type": "permanent"
+  "event_type": "permanent",
+  "pressure_range": [
+    999,
+    1004
+  ]
 }

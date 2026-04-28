@@ -17,5 +17,9 @@
   "transition_duration_s": 20,
   "event_type": "transient",
   "transient_event_duration_s": 40,
-  "transient_event_return_s": 30
+  "transient_event_return_s": 30,
+  "pressure_range": [
+    998,
+    1016
+  ]
 }

@@ -159,14 +159,19 @@ async def periodic_request_and_publish(
         if reply is not None:
             if error > 0:
                 reply.status = (
-                    "ERROR: Battery and temperature set to 0. See error code."
+                    "ERROR: Battery and sensors set to 0. See error code."
                 )
-                reply.temperature = 0.0
+                reply.sensor_data = {"temperature": 0.0, "pressure": 0.0}
                 reply.battery = 0.0
 
             coordinate = getattr(reply, "coordinate", {})
             longitude = coordinate.get("longitude", 0)
             latitude = coordinate.get("latitude", 0)
+            
+            sensor_data = getattr(reply, "sensor_data", {})
+            temperature = sensor_data.get("temperature", "")
+            pressure = sensor_data.get("pressure", "")
+
             log_data = {
                 "uuid": getattr(reply, "uuid", ""),
                 "message_id": message_id,
@@ -176,7 +181,8 @@ async def periodic_request_and_publish(
                 "uri": uri,
                 "longitude": longitude,
                 "latitude": latitude,
-                "temperature": getattr(reply, "temperature", ""),
+                "temperature": temperature,
+                "pressure": pressure,
                 "battery": getattr(reply, "battery", ""),
                 "error": error,
             }
@@ -256,6 +262,7 @@ async def main() -> None:
         "longitude",
         "latitude",
         "temperature",
+        "pressure",
         "battery",
         "error",
     ]

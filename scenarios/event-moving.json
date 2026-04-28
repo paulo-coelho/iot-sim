@@ -4,6 +4,14 @@
     "latitude": 42.0,
     "longitude": -76.0
   },
+  "temperature_range": [
+    20.0,
+    30.0
+  ],
+  "pressure_range": [
+    990.0,
+    1005.0
+  ],
   "drop_percentage": 20,
   "delay_profiles": [
     {

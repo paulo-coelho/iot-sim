@@ -6,9 +6,13 @@ It allows users to simulate data generation, device communication, and interacti
 ## Main features
 
 - IoT devices implemented as CoAP servers
+- Modular and customizable models for:
+  - **Battery**: Energy depletion (idle and transmission)
+  - **Network**: Probabilistic latency profiles and drop rates
+  - **Sensing**: Multiple sensor support (Temperature, Pressure, etc.)
 - Configurable behavior via JSON files (see examples in `scenarios/` folder)
-  - Temperature values
-  - Battery levels
+  - Multi-sensor values (e.g., Temperature and Pressure)
+  - Battery levels (0-100%)
   - Network latency
   - Drop rates
   - Coordinates

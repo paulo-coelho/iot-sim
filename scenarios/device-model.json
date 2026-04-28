@@ -14,9 +14,14 @@
     20.0,
     30.0
   ],
-  "battery_charge": 3000,
-  "battery_transmit_discharge": 10,
-  "battery_idle_discharge": 2,
+  "pressure_range": [
+    1000.0,
+    1015.0
+  ],
+  "battery_charge": 100,
+
+  "battery_transmit_discharge": 1,
+  "battery_idle_discharge": 0.05,
   "drop_percentage": 5,
   "delay_profiles": [
     {

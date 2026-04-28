@@ -167,7 +167,9 @@ function processDeviceData(data) {
   const lon = data.coordinate.longitude;
 
   const battery = Math.min(100, Math.max(0, data.battery)).toFixed(0);
-  const temperature = data.temperature.toFixed(1);
+  const sensorData = data.sensor_data || {};
+  const temperature = sensorData.temperature !== undefined ? sensorData.temperature.toFixed(1) : "N/A";
+  const pressure = sensorData.pressure !== undefined ? sensorData.pressure.toFixed(1) : "N/A";
 
   // --- STATUS AND BLINKING LOGIC (3 tiers) ---
   let displayStatusClass = "Normal";
@@ -198,7 +200,8 @@ function processDeviceData(data) {
             <div class="device-icon">●</div>
             <div class="device-info">
                 UUID: ${uuid.substring(0, 8)}...<br>
-                Temp: ${temperature}°C, Batt: ${battery}%
+                T: ${temperature}°C, P: ${pressure}hPa<br>
+                Batt: ${battery}%
             </div>
         </div>
     `;

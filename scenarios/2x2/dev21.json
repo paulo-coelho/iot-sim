@@ -34,5 +34,9 @@
   "uuid": "93cb4328-e2ee-4e45-963e-92a9c3e6f951",
   "battery_idle_discharge": 0.04,
   "battery_transmit_discharge": 0.6,
-  "battery_charge": 99
+  "battery_charge": 99,
+  "pressure_range": [
+    987,
+    1002
+  ]
 }

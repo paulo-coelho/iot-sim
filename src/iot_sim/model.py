@@ -7,7 +7,7 @@ class CoAPReply(BaseModel):
     uuid: str
     timestamp: float
     status: str
-    temperature: float
+    sensor_data: dict[str, float]
     battery: float
     coordinate: dict[str, float]
 
@@ -19,6 +19,7 @@ class CoAPReply(BaseModel):
 class DeviceConfig(BaseModel):
     uuid: str
     temperature_range: tuple[float, float]
+    pressure_range: tuple[float, float] = (1000.0, 1020.0)
     battery_charge: float
     battery_transmit_discharge: float
     battery_idle_discharge: float
@@ -44,6 +45,7 @@ class EventConfig(BaseModel):
     event_name: str = "Event"
     event_type: str = "permanent"
     temperature_range: tuple[float, float] | None = None
+    pressure_range: tuple[float, float] | None = None
     battery_transmit_discharge: float | None = None
     battery_idle_discharge: float | None = None
     drop_percentage: float | None = None
@@ -71,6 +73,7 @@ class EventConfig(BaseModel):
             event_name=data.get("event_name", old.event_name),
             event_type=data.get("event_type", old.event_type),
             temperature_range=data.get("temperature_range", old.temperature_range),
+            pressure_range=data.get("pressure_range", old.pressure_range),
             battery_transmit_discharge=data.get(
                 "battery_transmit_discharge", old.battery_transmit_discharge
             ),
@@ -97,6 +100,7 @@ class EventConfig(BaseModel):
             event_name="Normal",
             event_type="permanent",
             temperature_range=device_config.temperature_range,
+            pressure_range=device_config.pressure_range,
             battery_transmit_discharge=device_config.battery_transmit_discharge,
             battery_idle_discharge=device_config.battery_idle_discharge,
             drop_percentage=device_config.drop_percentage,
